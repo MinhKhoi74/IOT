@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>MoMo Callback</title>
+    <style>
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            font-family: "Segoe UI", sans-serif;
+            background: linear-gradient(160deg, #f1e8d9, #e8f3f2);
+            color: #1c2828;
+        }
+        .card {
+            width: min(560px, calc(100vw - 32px));
+            background: rgba(255,255,255,.95);
+            border: 1px solid rgba(19,93,102,.12);
+            border-radius: 24px;
+            padding: 28px;
+            box-shadow: 0 20px 60px rgba(0,0,0,.12);
+        }
+        h1 { margin: 0 0 12px; }
+        p { color: #566262; }
+        .row {
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 12px 0;
+            border-bottom: 1px dashed #d5dede;
+        }
+        strong { text-align: right; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>MoMo Redirect Callback</h1>
+        <p>Đây là trang người dùng được chuyển về sau khi thanh toán. Trạng thái cuối cùng vẫn nên lấy từ IPN/server-to-server.</p>
+        <div class="row"><span>Order ID</span><strong id="orderId">-</strong></div>
+        <div class="row"><span>Result Code</span><strong id="resultCode">-</strong></div>
+        <div class="row"><span>Message</span><strong id="message">-</strong></div>
+    </div>
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        document.getElementById("orderId").textContent = params.get("orderId") || "-";
+        document.getElementById("resultCode").textContent = params.get("resultCode") || "-";
+        document.getElementById("message").textContent = params.get("message") || "-";
+    </script>
+</body>
+</html>

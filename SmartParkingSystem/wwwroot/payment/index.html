@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Nạp Tiền MoMo - SmartParking</title>
+    <style>
+        :root {
+            --primary: #d82d60;
+            --bg: #f5f5f5;
+            --card: #fff;
+            --text: #333;
+            --text-light: #666;
+            --border: #e0e0e0;
+        }
+        * { 
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #f5f5f5;
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 40px;
+            box-shadow: 0 4px 20px rgba(0,0,0,.1);
+            max-width: 500px;
+            width: 100%;
+            margin: 20px;
+        }
+        .logo {
+            text-align: center;
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+        h1 {
+            font-size: 24px;
+            margin-bottom: 12px;
+            text-align: center;
+        }
+        .subtitle {
+            color: var(--text-light);
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-light);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+        }
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+        input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(216,45,96,.1);
+        }
+        .button-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 24px;
+        }
+        button {
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), #e63f7a);
+            color: white;
+            grid-column: 1 / -1;
+        }
+        .btn-primary:hover {
+            box-shadow: 0 4px 12px rgba(216,45,96,.3);
+            transform: translateY(-2px);
+        }
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .btn-secondary {
+            background: white;
+            color: var(--primary);
+            border: 1px solid var(--primary);
+        }
+        .btn-secondary:hover {
+            background: rgba(216,45,96,.05);
+        }
+        .status {
+            margin-top: 20px;
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            display: none;
+        }
+        .status.show {
+            display: block;
+        }
+        .status.info {
+            background: #e3f2fd;
+            color: #1976d2;
+            border-left: 3px solid #1976d2;
+        }
+        .status.success {
+            background: #e8f5e9;
+            color: #27ae60;
+            border-left: 3px solid #27ae60;
+        }
+        .status.error {
+            background: #ffebee;
+            color: #d32f2f;
+            border-left: 3px solid #d32f2f;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">💳</div>
+        <h1>Nạp Tiền MoMo</h1>
+        <p class="subtitle">SmartParking Wallet Top-up</p>
+
+        <div class="form-group">
+            <label for="apiBase">API Base URL</label>
+            <input id="apiBase" type="text" value="https://localhost:7000" placeholder="https://localhost:7000">
+        </div>
+
+        <div class="form-group">
+            <label for="token">Bearer Token</label>
+            <input id="token" type="password" placeholder="Dán JWT token của user">
+        </div>
+
+        <div class="form-group">
+            <label for="amount">Số Tiền (VND)</label>
+            <input id="amount" type="number" value="10000" min="1000">
+        </div>
+
+        <div class="button-group">
+            <button class="btn-secondary" onclick="debugPayment()">🔍 Debug</button>
+            <button class="btn-primary" id="submitBtn" onclick="createPayment()">Tạo Thanh Toán</button>
+        </div>
+
+        <div id="status" class="status"></div>
+    </div>
+
+    <script>
+        const $ = (id) => document.getElementById(id);
+
+        function showStatus(message, type = 'info') {
+            const status = $('status');
+            status.textContent = message;
+            status.className = `status show ${type}`;
+        }
+
+        function clearForm() {
+            $('token').value = '';
+            $('amount').value = '10000';
+            $('status').className = 'status';
+        }
+
+        async function debugPayment() {
+            const apiBase = $('apiBase').value.trim();
+            const amount = Number($('amount').value);
+
+            if (!apiBase) {
+                showStatus('❌ Vui lòng nhập API Base URL', 'error');
+                return;
+            }
+
+            if (!amount || amount < 1000) {
+                showStatus('❌ Số tiền phải >= 1000 VND', 'error');
+                return;
+            }
+
+            $('submitBtn').disabled = true;
+            showStatus('⏳ Đang debug payment...', 'info');
+
+            try {
+                const response = await fetch(`${apiBase}/api/wallet/top-up/momo-debug`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ amount })
+                });
+
+                const data = await response.json();
+                
+                console.log('=== DEBUG RESPONSE ===');
+                console.log(JSON.stringify(data, null, 2));
+
+                // Build detailed debug info
+                let debugHTML = '<div style="text-align: left; font-family: monospace; font-size: 12px;">';
+                
+                if (data.availableMethods) {
+                    debugHTML += '<strong>🔍 Payment Methods Comparison:</strong><br>';
+                    data.availableMethods.forEach(m => {
+                        if (m.error) {
+                            debugHTML += `<span style="color: red;">❌ ${m.method}: ${m.error}</span><br>`;
+                        } else {
+                            debugHTML += `<span style="color: green;">✓ ${m.method}</span><br>`;
+                            debugHTML += `  RequestType: <strong>${m.requestType}</strong><br>`;
+                            debugHTML += `  Limit: ${m.limit || '(none - shows all methods)'}<br>`;
+                            debugHTML += `  Result: ${m.resultCode === 0 ? '✓ OK' : `✗ ${m.message}`}<br><br>`;
+                        }
+                    });
+                } else {
+                    debugHTML += '<strong>Request Type:</strong> ' + data.builtPayload?.requestType + '<br>';
+                    debugHTML += '<strong>Limit:</strong> ' + (data.builtPayload?.limit || 'None') + '<br>';
+                    debugHTML += '<strong>Result:</strong> ' + data.response?.resultCode + '<br>';
+                }
+                
+                debugHTML += '</div>';
+
+                const statusEl = $('status');
+                statusEl.innerHTML = '✓ Check Console (F12) for full response<br>' + debugHTML;
+                statusEl.className = 'status show success';
+
+            } catch (error) {
+                showStatus(`❌ ${error.message}`, 'error');
+                console.error('Error:', error);
+            } finally {
+                $('submitBtn').disabled = false;
+            }
+        }
+
+        async function createPayment() {
+            const apiBase = $('apiBase').value.trim();
+            const token = $('token').value.trim();
+            const amount = Number($('amount').value);
+
+            if (!apiBase) {
+                showStatus('❌ Vui lòng nhập API Base URL', 'error');
+                return;
+            }
+
+            if (!token) {
+                showStatus('❌ Vui lòng nhập Bearer Token', 'error');
+                return;
+            }
+
+            if (!amount || amount < 1000) {
+                showStatus('❌ Số tiền phải >= 1000 VND', 'error');
+                return;
+            }
+
+            $('submitBtn').disabled = true;
+            showStatus('⏳ Đang tạo giao dịch...', 'info');
+
+            try {
+                const response = await fetch(`${apiBase}/api/wallet/top-up/momo`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ amount })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.message || 'Tạo thanh toán thất bại');
+                }
+
+                if (!data.payUrl) {
+                    throw new Error('Không nhận được payUrl từ API');
+                }
+
+                showStatus('✓ Mở trang thanh toán MoMo...', 'success');
+                
+                // Delay một chút rồi mở payUrl
+                setTimeout(() => {
+                    window.open(data.payUrl, '_blank', 'noopener,noreferrer');
+                }, 500);
+
+                // Hiển thị thông tin
+                console.log('Order ID:', data.orderId);
+                console.log('Amount:', data.amount);
+                console.log('PayUrl:', data.payUrl);
+
+            } catch (error) {
+                showStatus(`❌ ${error.message}`, 'error');
+                console.error('Error:', error);
+            } finally {
+                $('submitBtn').disabled = false;
+            }
+        }
+
+        // Allow Enter key to submit
+        document.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                createPayment();
+            }
+        });
+    </script>
+</body>
+</html>
