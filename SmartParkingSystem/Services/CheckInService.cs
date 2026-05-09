@@ -14,6 +14,7 @@ namespace SmartParking.Services
         private readonly ApplicationDBContext _context;
         private readonly IRedisService _redis;
         private readonly IElectronicTicketService _electronTicketService;
+        private readonly IArduinoSerialService _arduinoSerialService;
         private readonly IHubContext<ParkingHub> _parkingHub;
         private readonly ILogger<CheckInService> _logger;
 
@@ -21,12 +22,14 @@ namespace SmartParking.Services
             ApplicationDBContext context,
             IRedisService redis,
             IElectronicTicketService electronTicketService,
+            IArduinoSerialService arduinoSerialService,
             IHubContext<ParkingHub> parkingHub,
             ILogger<CheckInService> logger)
         {
             _context = context;
             _redis = redis;
             _electronTicketService = electronTicketService;
+            _arduinoSerialService = arduinoSerialService;
             _parkingHub = parkingHub;
             _logger = logger;
         }
@@ -123,6 +126,7 @@ namespace SmartParking.Services
                     licensePlate = plate,
                     checkInTime = now
                 });
+                await _arduinoSerialService.SendCheckInOkAsync(plate);
 
                 return new CheckInResult
                 {

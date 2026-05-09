@@ -81,6 +81,9 @@ builder.Services.AddHttpClient<IMomoService, MomoService>();
 builder.Services.AddHostedService<TicketLicensePlateMatcher>();
 builder.Services.AddScoped<IBranchAuthorizationService, BranchAuthorizationService>();
 builder.Services.AddScoped<IVehicleAuthorizationService, VehicleAuthorizationService>();
+builder.Services.Configure<SmartParking.Configurations.ArduinoSerialSettings>(
+    builder.Configuration.GetSection("ArduinoSerial"));
+builder.Services.AddSingleton<IArduinoSerialService, ArduinoSerialService>();
 builder.Services.AddSignalR();
 
 // ================= REDIS =================
@@ -149,7 +152,16 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("SignalRPolicy", policy =>
     {
-        policy.WithOrigins("http://localhost:3000", "https://localhost:3000", "http://localhost:5173", "https://localhost:5173", "http://127.0.0.1:5173", "https://127.0.0.1:5173") // Thay bằng URL Frontend của bạn
+        policy.SetIsOriginAllowed(origin =>
+              {
+                  if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri))
+                  {
+                      return false;
+                  }
+
+                  return uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase)
+                         || uri.Host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase);
+              })
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();

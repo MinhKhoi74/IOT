@@ -21,6 +21,7 @@ namespace SmartParking.Services
         private readonly IElectronicTicketService _electronicTicketService;
         private readonly IElectronicTicketNotificationService _notificationService;
         private readonly IMonthlyPassService _monthlyPassService;
+        private readonly IArduinoSerialService _arduinoSerialService;
         private readonly IHubContext<ParkingHub> _parkingHub;
         private readonly ILogger<CheckOutService> _logger;
 
@@ -35,6 +36,7 @@ namespace SmartParking.Services
             IElectronicTicketService electronicTicketService,
             IElectronicTicketNotificationService notificationService,
             IMonthlyPassService monthlyPassService,
+            IArduinoSerialService arduinoSerialService,
             IHubContext<ParkingHub> parkingHub,
             ILogger<CheckOutService> logger)
         {
@@ -43,6 +45,7 @@ namespace SmartParking.Services
             _electronicTicketService = electronicTicketService;
             _notificationService = notificationService;
             _monthlyPassService = monthlyPassService;
+            _arduinoSerialService = arduinoSerialService;
             _parkingHub = parkingHub;
             _logger = logger;
         }
@@ -122,6 +125,7 @@ namespace SmartParking.Services
                 var feeText = hasMonthlyPass ? "- Ve thang" : "- Mien phi";
                 _logger.LogInformation("Checkout - {Plate} - {Time:dd/M/yyyy - HH:mm} {FeeText}", plate, now, feeText);
                 await NotifyDashboardUpdatedAsync("checkout", checkinRecord);
+                await _arduinoSerialService.SendCheckOutOkAsync(plate);
 
                 return new CheckOutResult
                 {
@@ -195,6 +199,7 @@ namespace SmartParking.Services
             await _context.SaveChangesAsync();
             await _redis.RemoveCheckinAsync(checkinRecord.LicensePlate);
             await NotifyDashboardUpdatedAsync("payment-confirmed", checkinRecord);
+            await _arduinoSerialService.SendCheckOutOkAsync(checkinRecord.LicensePlate);
 
             return new CheckOutResult
             {

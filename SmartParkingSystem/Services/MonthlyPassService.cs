@@ -62,6 +62,20 @@ namespace SmartParking.Services
             return ToDto(pass);
         }
 
+        public async Task<MonthlyPassDto> RegisterForUserAsync(string userId, MonthlyPassUpsertRequest request)
+        {
+            var plate = NormalizePlate(request.LicensePlate);
+            var ownsVehicle = await _context.Vehicle.AnyAsync(x => x.UserId == userId && x.LicensePlate == plate);
+            if (!ownsVehicle)
+            {
+                throw new ArgumentException("License plate is not registered to this user.");
+            }
+
+            request.LicensePlate = plate;
+            request.IsActive = true;
+            return await UpsertAsync(request);
+        }
+
         public async Task DeleteAsync(int id)
         {
             var pass = await _context.MonthlyPasses.FindAsync(id);
