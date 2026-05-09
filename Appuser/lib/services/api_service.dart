@@ -96,6 +96,27 @@ class ApiService {
     });
   }
 
+  Future<Map<String, dynamic>> createMonthlyPassMomoPayment({
+    required double amount,
+    required String paymentMethod,
+    required String licensePlate,
+    required String ownerName,
+    required String ownerPhone,
+    required DateTime validFrom,
+    required DateTime validTo,
+  }) async {
+    return _post('/monthly-passes/momo', {
+      'amount': amount,
+      'paymentMethod': paymentMethod,
+      'licensePlate': licensePlate.trim().toUpperCase(),
+      'ownerName': ownerName.trim(),
+      'ownerPhone': ownerPhone.trim(),
+      'validFrom': validFrom.toIso8601String(),
+      'validTo': validTo.toIso8601String(),
+      'isActive': true,
+    });
+  }
+
   Future<List<ParkingHistoryItem>> getParkingHistory() async {
     final data = await _getList('/parking/history/me');
     return data
@@ -120,6 +141,19 @@ class ApiService {
     await _post('/vehicles', {
       'licensePlate': licensePlate.trim().toUpperCase(),
       'vehicleType': vehicleType,
+      'brand': brand,
+      'color': color,
+      'isDefault': isDefault,
+    });
+  }
+
+  Future<void> updateVehicle({
+    required String id,
+    required String brand,
+    required String color,
+    required bool isDefault,
+  }) async {
+    await _put('/vehicles/$id', {
       'brand': brand,
       'color': color,
       'isDefault': isDefault,

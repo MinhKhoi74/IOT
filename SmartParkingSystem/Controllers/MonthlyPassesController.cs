@@ -1,7 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Text;
+using System.Text.Json;
 using System.Security.Claims;
 using SmartParking.DTOs;
+using SmartParking.DTOs.Momo;
 using SmartParking.Services.Interfaces;
 
 namespace SmartParking.Controllers
@@ -12,10 +15,12 @@ namespace SmartParking.Controllers
     public class MonthlyPassesController : ControllerBase
     {
         private readonly IMonthlyPassService _monthlyPassService;
+        private readonly IMomoService _momoService;
 
-        public MonthlyPassesController(IMonthlyPassService monthlyPassService)
+        public MonthlyPassesController(IMonthlyPassService monthlyPassService, IMomoService momoService)
         {
             _monthlyPassService = monthlyPassService;
+            _momoService = momoService;
         }
 
         [HttpGet]
@@ -66,6 +71,45 @@ namespace SmartParking.Controllers
             {
                 return BadRequest(new { message = ex.Message });
             }
+        }
+
+        [HttpPost("momo")]
+        public async Task<IActionResult> CreateMomoPayment([FromBody] MonthlyPassMomoPaymentRequest request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return ValidationProblem(ModelState);
+            }
+
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                return Unauthorized();
+            }
+
+            var extraData = Convert.ToBase64String(Encoding.UTF8.GetBytes(
+                JsonSerializer.Serialize(new Dictionary<string, string>
+                {
+                    ["target"] = "monthly-pass",
+                    ["userId"] = userId,
+                    ["licensePlate"] = request.LicensePlate.Trim().ToUpperInvariant(),
+                    ["ownerName"] = request.OwnerName.Trim(),
+                    ["ownerPhone"] = request.OwnerPhone?.Trim() ?? string.Empty,
+                    ["validFrom"] = request.ValidFrom.ToString("O"),
+                    ["validTo"] = request.ValidTo.ToString("O")
+                })));
+
+            var payment = await _momoService.CreatePaymentAsync(new MomoCreatePaymentRequestDto
+            {
+                Amount = request.Amount,
+                OrderId = $"monthly-{userId}-{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}",
+                RequestId = $"monthly-{Guid.NewGuid():N}",
+                OrderInfo = $"Mua ve thang SmartParking cho xe {request.LicensePlate.Trim().ToUpperInvariant()}",
+                ExtraData = extraData,
+                PaymentMethod = request.PaymentMethod ?? "Wallet"
+            });
+
+            return Ok(payment);
         }
 
         [HttpDelete("{id:int}")]

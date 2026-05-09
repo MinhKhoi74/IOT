@@ -16,6 +16,7 @@ Usage:
     # IPWebcam with both IP and port in --ip argument
     python webcam_smart_lowlatency.py --ip 192.168.1.20:8080
     dotnet run --urls "http://localhost:5000"
+    flutter run -d chrome --web-port 3000
 """
 
 import os

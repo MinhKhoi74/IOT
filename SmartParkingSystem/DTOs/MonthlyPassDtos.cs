@@ -36,4 +36,14 @@ namespace SmartParking.DTOs
         [JsonPropertyName("isActive")]
         public bool IsActive { get; set; } = true;
     }
+
+    public class MonthlyPassMomoPaymentRequest : MonthlyPassUpsertRequest
+    {
+        [Range(1000, double.MaxValue)]
+        [JsonPropertyName("amount")]
+        public decimal Amount { get; set; }
+
+        [JsonPropertyName("paymentMethod")]
+        public string? PaymentMethod { get; set; } = "Wallet";
+    }
 }

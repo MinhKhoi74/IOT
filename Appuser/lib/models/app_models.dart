@@ -4,18 +4,39 @@ class AppUser {
     required this.email,
     required this.fullName,
     this.phoneNumber,
+    this.userName,
+    this.roles = const [],
+    this.isActive = true,
+    this.vehicles = const [],
+    this.monthlyPasses = const [],
   });
 
   final String id;
   final String email;
   final String fullName;
   final String? phoneNumber;
+  final String? userName;
+  final List<String> roles;
+  final bool isActive;
+  final List<VehicleInfo> vehicles;
+  final List<MonthlyPassInfo> monthlyPasses;
 
   factory AppUser.fromJson(Map<String, dynamic> json) => AppUser(
         id: json['id']?.toString() ?? '',
         email: json['email']?.toString() ?? '',
         fullName: json['fullName']?.toString() ?? '',
         phoneNumber: json['phoneNumber']?.toString(),
+        userName: json['userName']?.toString(),
+        roles: (json['roles'] as List<dynamic>? ?? [])
+            .map((item) => item.toString())
+            .toList(),
+        isActive: json['isActive'] != false,
+        vehicles: (json['vehicles'] as List<dynamic>? ?? [])
+            .map((item) => VehicleInfo.fromJson(item as Map<String, dynamic>))
+            .toList(),
+        monthlyPasses: (json['monthlyPasses'] as List<dynamic>? ?? [])
+            .map((item) => MonthlyPassInfo.fromJson(item as Map<String, dynamic>))
+            .toList(),
       );
 }
 
@@ -81,6 +102,44 @@ class VehicleInfo {
         brand: json['brand']?.toString() ?? '',
         color: json['color']?.toString() ?? '',
         isDefault: json['isDefault'] == true,
+      );
+}
+
+class MonthlyPassInfo {
+  const MonthlyPassInfo({
+    required this.id,
+    required this.licensePlate,
+    required this.ownerName,
+    this.ownerPhone,
+    required this.validFrom,
+    required this.validTo,
+    required this.isActive,
+  });
+
+  final int id;
+  final String licensePlate;
+  final String ownerName;
+  final String? ownerPhone;
+  final DateTime validFrom;
+  final DateTime validTo;
+  final bool isActive;
+
+  bool get isValidNow {
+    final now = DateTime.now();
+    return isActive && !now.isBefore(validFrom) && !now.isAfter(validTo);
+  }
+
+  factory MonthlyPassInfo.fromJson(Map<String, dynamic> json) =>
+      MonthlyPassInfo(
+        id: (json['id'] as num? ?? 0).toInt(),
+        licensePlate: json['licensePlate']?.toString() ?? '',
+        ownerName: json['ownerName']?.toString() ?? '',
+        ownerPhone: json['ownerPhone']?.toString(),
+        validFrom: DateTime.tryParse(json['validFrom']?.toString() ?? '') ??
+            DateTime.now(),
+        validTo: DateTime.tryParse(json['validTo']?.toString() ?? '') ??
+            DateTime.now(),
+        isActive: json['isActive'] == true,
       );
 }
 

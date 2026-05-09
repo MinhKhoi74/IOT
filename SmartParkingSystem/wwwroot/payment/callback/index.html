@@ -11,14 +11,14 @@
             display: grid;
             place-items: center;
             font-family: "Segoe UI", sans-serif;
-            background: linear-gradient(160deg, #f1e8d9, #e8f3f2);
+            background: linear-gradient(160deg, #f7f9fb, #e8f3f2);
             color: #1c2828;
         }
         .card {
             width: min(560px, calc(100vw - 32px));
             background: rgba(255,255,255,.95);
             border: 1px solid rgba(19,93,102,.12);
-            border-radius: 24px;
+            border-radius: 8px;
             padding: 28px;
             box-shadow: 0 20px 60px rgba(0,0,0,.12);
         }
@@ -32,21 +32,61 @@
             border-bottom: 1px dashed #d5dede;
         }
         strong { text-align: right; }
+        a { color: #0f5f4f; font-weight: 700; }
     </style>
 </head>
 <body>
     <div class="card">
-        <h1>MoMo Redirect Callback</h1>
-        <p>Đây là trang người dùng được chuyển về sau khi thanh toán. Trạng thái cuối cùng vẫn nên lấy từ IPN/server-to-server.</p>
+        <h1 id="title">Dang quay ve trang xe</h1>
+        <p id="description">Vui long cho trong giay lat.</p>
         <div class="row"><span>Order ID</span><strong id="orderId">-</strong></div>
         <div class="row"><span>Result Code</span><strong id="resultCode">-</strong></div>
         <div class="row"><span>Message</span><strong id="message">-</strong></div>
+        <p><a id="openApp" href="smartparking://vehicles">Mo lai ung dung SmartParking</a></p>
+        <p id="hint"></p>
     </div>
     <script>
         const params = new URLSearchParams(window.location.search);
+        const resultCode = params.get("resultCode") || "-";
+        const message = params.get("message") || "-";
+        const status = resultCode === "0" ? "success" : "failed";
+        const appUrl = new URL("smartparking://vehicles");
+
+        for (const [key, value] of params.entries()) {
+            appUrl.searchParams.set(key, value);
+        }
+        appUrl.searchParams.set("status", status);
+
         document.getElementById("orderId").textContent = params.get("orderId") || "-";
-        document.getElementById("resultCode").textContent = params.get("resultCode") || "-";
-        document.getElementById("message").textContent = params.get("message") || "-";
+        document.getElementById("resultCode").textContent = resultCode;
+        document.getElementById("message").textContent = message;
+        document.getElementById("title").textContent = status === "success"
+            ? "Thanh toan thanh cong"
+            : "Thanh toan that bai";
+        document.getElementById("description").textContent = "Dang quay ve trang xe trong ung dung SmartParking.";
+        const appLink = appUrl.toString();
+        const query = appUrl.search;
+        const androidIntentLink =
+            `intent://vehicles${query}#Intent;scheme=smartparking;package=com.example.appuser;end`;
+        const webReturnUrl = params.get("webReturnUrl") || "http://localhost:3000/";
+        const webUrl = new URL(webReturnUrl);
+        webUrl.searchParams.set("tab", "vehicles");
+        webUrl.searchParams.set("paymentStatus", status);
+        if (params.get("orderId")) webUrl.searchParams.set("orderId", params.get("orderId"));
+        if (params.get("resultCode")) webUrl.searchParams.set("resultCode", params.get("resultCode"));
+        if (params.get("message")) webUrl.searchParams.set("message", params.get("message"));
+
+        const isAndroid = /Android/i.test(navigator.userAgent);
+        const openLink = isAndroid ? androidIntentLink : webUrl.toString();
+
+        document.getElementById("openApp").href = openLink;
+        document.getElementById("hint").textContent = isAndroid
+            ? "Neu ung dung chua mo, hay bam lien ket ben tren."
+            : "Dang quay ve Flutter web. Neu sai port, them webReturnUrl vao ReturnUrl cua MoMo.";
+
+        setTimeout(() => {
+            window.location.href = openLink;
+        }, 500);
     </script>
 </body>
 </html>
