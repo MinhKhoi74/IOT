@@ -16,7 +16,7 @@ export const ProtectedRoute = ({ element, requiredRole }: ProtectedRouteProps) =
           <div className="inline-block">
             <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
           </div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading...</p>
+          <p className="mt-4 text-gray-600 dark:text-gray-400">Đang tải...</p>
         </div>
       </div>
     );

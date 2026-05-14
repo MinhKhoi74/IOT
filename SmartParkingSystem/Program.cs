@@ -73,6 +73,7 @@ builder.Services.AddScoped<ICheckInService, CheckInService>();
 builder.Services.AddScoped<ICheckOutService, CheckOutService>();
 builder.Services.AddScoped<IWalletService, WalletService>();
 builder.Services.AddScoped<IParkingHistoryService, ParkingHistoryService>();
+builder.Services.AddScoped<IVehicleLocationService, VehicleLocationService>();
 builder.Services.AddScoped<IMonthlyPassService, MonthlyPassService>();
 builder.Services.AddScoped<IElectronicTicketService, ElectronicTicketService>();
 builder.Services.AddScoped<IElectronicTicketNotificationService, ElectronicTicketNotificationService>();

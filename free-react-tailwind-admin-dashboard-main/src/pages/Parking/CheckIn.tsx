@@ -58,7 +58,7 @@ export default function ParkingCheckIn() {
           plateNumber: latest.plateNumber,
           confidence: 1,
           success: true,
-          message: `Check-in successful: ${latest.plateNumber}`,
+          message: `Ghi nhận xe vào thành công: ${latest.plateNumber}`,
           imageBase64: latest.checkInImageBase64,
         });
       } catch (error) {
@@ -77,8 +77,8 @@ export default function ParkingCheckIn() {
   const checkInButtonText = checkInEvent
     ? checkInEvent.message
     : plateNumber
-      ? "Check-In Vehicle"
-      : "Waiting for license plate...";
+      ? "Ghi nhận xe vào"
+      : "Đang chờ biển số...";
 
   const handleManualCheckIn = async () => {
     const plate = plateNumber.trim().toUpperCase();
@@ -87,7 +87,7 @@ export default function ParkingCheckIn() {
         plateNumber: "",
         confidence: 0,
         success: false,
-        message: "Please enter or capture a plate number first.",
+        message: "Vui lòng nhập hoặc quét biển số trước.",
       });
       return;
     }
@@ -112,7 +112,7 @@ export default function ParkingCheckIn() {
         plateNumber: plate,
         confidence: confidence || 0,
         success: false,
-        message: error instanceof Error ? error.message : "Check-in failed.",
+        message: error instanceof Error ? error.message : "Ghi nhận xe vào thất bại.",
       });
     } finally {
       setIsProcessing(false);
@@ -122,16 +122,16 @@ export default function ParkingCheckIn() {
   return (
     <>
       <PageMeta
-        title="Vehicle Check-In | Smart Parking"
-        description="Check-in vehicle by license plate recognition"
+        title="Xe vào | Smart Parking"
+        description="Ghi nhận xe vào bằng nhận diện biển số"
       />
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
-            Vehicle Check-In
+            Xe vào
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
-            Record vehicle entry using camera recognition
+            Ghi nhận xe vào bằng camera nhận diện biển số
           </p>
         </div>
 
@@ -166,11 +166,11 @@ export default function ParkingCheckIn() {
           </div>
 
           <div className="lg:col-span-1">
-            <ComponentCard title="Check-In Details">
+            <ComponentCard title="Thông tin xe vào">
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Station ID
+                    Mã trạm
                   </label>
                   <select
                     value={stationId}
@@ -185,7 +185,7 @@ export default function ParkingCheckIn() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Plate Number
+                    Biển số
                   </label>
                   <input
                     type="text"
@@ -198,7 +198,7 @@ export default function ParkingCheckIn() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Detection Confidence
+                    Độ tin cậy nhận diện
                   </label>
                   <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2">
                     <div
@@ -213,16 +213,14 @@ export default function ParkingCheckIn() {
 
                 <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
                   <p className="text-xs text-blue-700 dark:text-blue-400">
-                    <span className="font-semibold">Info:</span> Python camera
-                    checks vehicles in automatically. This panel shows the latest
-                    check-in status and captured frame.
+                    <span className="font-semibold">Thông tin:</span> Camera Python tự động ghi nhận xe vào. Khung này hiển thị trạng thái mới nhất và ảnh đã chụp.
                   </p>
                 </div>
 
                 {checkInEvent?.success && checkInEvent.imageBase64 && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Check-In Camera Frame
+                      Ảnh xe vào
                     </label>
                     <img
                       src={`data:image/jpeg;base64,${checkInEvent.imageBase64}`}
@@ -243,7 +241,7 @@ export default function ParkingCheckIn() {
                       : "bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400"
                   }`}
                 >
-                  {isProcessing ? "Processing..." : checkInButtonText}
+                  {isProcessing ? "Đang xử lý..." : checkInButtonText}
                 </button>
               </div>
             </ComponentCard>

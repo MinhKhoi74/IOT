@@ -23,7 +23,7 @@ export default function UserMetaCard() {
       setUser(userData);
       setError("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load profile");
+      setError(err instanceof Error ? err.message : "Không tải được hồ sơ");
       console.error(err);
     } finally {
       setLoading(false);
@@ -40,11 +40,11 @@ export default function UserMetaCard() {
     user?.fullName || [user?.firstName, user?.lastName].filter(Boolean).join(" ") || "N/A";
 
   if (loading) {
-    return <div className="p-5 text-center">Loading profile...</div>;
+    return <div className="p-5 text-center">Đang tải hồ sơ...</div>;
   }
 
   if (error) {
-    return <div className="p-5 text-center text-red-500">Error: {error}</div>;
+    return <div className="p-5 text-center text-red-500">Lỗi: {error}</div>;
   }
 
   return (
@@ -65,7 +65,7 @@ export default function UserMetaCard() {
                 </p>
                 <div className="hidden h-3.5 w-px bg-gray-300 dark:bg-gray-700 xl:block"></div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  {user?.phoneNumber || "No phone"}
+                  {user?.phoneNumber || "Chưa có số điện thoại"}
                 </p>
               </div>
             </div>
@@ -154,7 +154,7 @@ export default function UserMetaCard() {
                 fill=""
               />
             </svg>
-            Edit
+            Sửa
           </button>
         </div>
       </div>
@@ -163,42 +163,42 @@ export default function UserMetaCard() {
         <div className="no-scrollbar relative w-full max-w-[700px] overflow-y-auto rounded-3xl bg-white p-4 dark:bg-gray-900 lg:p-11">
           <div className="px-2 pr-14">
             <h4 className="mb-2 text-2xl font-semibold text-gray-800 dark:text-white/90">
-              Edit Profile
+              Chỉnh sửa hồ sơ
             </h4>
             <p className="mb-6 text-sm text-gray-500 dark:text-gray-400 lg:mb-7">
-              Update your details to keep your profile up-to-date.
+              Cập nhật thông tin để hồ sơ luôn chính xác.
             </p>
           </div>
           <form className="flex flex-col">
             <div className="custom-scrollbar h-[450px] overflow-y-auto px-2 pb-3">
               <div className="grid grid-cols-1 gap-x-6 gap-y-5 lg:grid-cols-2">
                 <div className="col-span-2 lg:col-span-1">
-                  <Label>Full Name</Label>
+                  <Label>Họ tên</Label>
                   <Input type="text" value={user?.fullName || displayName} />
                 </div>
 
                 <div className="col-span-2 lg:col-span-1">
-                  <Label>Role</Label>
+                  <Label>Vai trò</Label>
                   <Input type="text" value={user?.roles?.join(", ") || ""} disabled />
                 </div>
 
                 <div className="col-span-2 lg:col-span-1">
-                  <Label>Email Address</Label>
+                  <Label>Email</Label>
                   <Input type="text" value={user?.email || ""} />
                 </div>
 
                 <div className="col-span-2 lg:col-span-1">
-                  <Label>Phone</Label>
+                  <Label>Số điện thoại</Label>
                   <Input type="text" value={user?.phoneNumber || ""} />
                 </div>
               </div>
             </div>
             <div className="flex items-center gap-3 px-2 mt-6 lg:justify-end">
               <Button size="sm" variant="outline" onClick={closeModal}>
-                Close
+                Đóng
               </Button>
               <Button size="sm" onClick={handleSave}>
-                Save Changes
+                Lưu thay đổi
               </Button>
             </div>
           </form>

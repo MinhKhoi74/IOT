@@ -9,8 +9,10 @@ public class CameraStreamService : ICameraStreamService, IDisposable
     private readonly string _solutionRoot;
     private readonly string _pythonProjectDir;
     private readonly string _pythonScriptPath;
+    private readonly string _zonePythonScriptPath;
     private readonly string _pythonExecutable;
     private readonly object _sync = new();
+    private readonly Dictionary<string, ZoneCameraProcessState> _zoneCameraProcesses = new();
     private Process? _cameraProcess;
     private CameraStartRequest? _lastRequest;
 
@@ -20,6 +22,7 @@ public class CameraStreamService : ICameraStreamService, IDisposable
         _solutionRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", ".."));
         _pythonProjectDir = Path.Combine(_solutionRoot, "License-Plate-Recognition-main");
         _pythonScriptPath = Path.Combine(_pythonProjectDir, "webcam_smart_lowlatency.py");
+        _zonePythonScriptPath = Path.Combine(_pythonProjectDir, "webcam_zone_locator.py");
         _pythonExecutable = ResolvePythonExecutable();
     }
 
@@ -161,6 +164,184 @@ public class CameraStreamService : ICameraStreamService, IDisposable
         ));
     }
 
+    public async Task<CameraStreamStatus> StartZoneAsync(ZoneCameraStartRequest request, CancellationToken cancellationToken = default)
+    {
+        ValidateZoneRequest(request);
+
+        var key = BuildZoneKey(request.CameraId, request.ApiPort);
+        lock (_sync)
+        {
+            if (_zoneCameraProcesses.TryGetValue(key, out var existing) &&
+                existing.Process is { HasExited: false } &&
+                ZoneRequestMatches(existing.Request, request))
+            {
+                return BuildZoneStatus(existing, "Zone camera service is already running.");
+            }
+        }
+
+        await StopZoneAsync(request.CameraId, request.ApiPort, cancellationToken);
+        KillOrphanZoneCameraProcesses(request.ApiPort);
+
+        if (!File.Exists(_zonePythonScriptPath))
+        {
+            throw new FileNotFoundException("Zone camera script not found.", _zonePythonScriptPath);
+        }
+
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = _pythonExecutable,
+            WorkingDirectory = _pythonProjectDir,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true
+        };
+
+        startInfo.ArgumentList.Add(_zonePythonScriptPath);
+        startInfo.ArgumentList.Add("--ip");
+        startInfo.ArgumentList.Add($"{request.CameraIp}:{request.CameraPort}");
+        startInfo.ArgumentList.Add("--camera-id");
+        startInfo.ArgumentList.Add(request.CameraId);
+        AddOptionalArgument(startInfo, "--parking-lot", request.ParkingLotCode);
+        AddOptionalArgument(startInfo, "--zone", request.ZoneCode);
+        AddOptionalArgument(startInfo, "--column", request.ColumnCode);
+        startInfo.ArgumentList.Add("--location-name");
+        startInfo.ArgumentList.Add(request.LocationName);
+        startInfo.ArgumentList.Add("--api-server");
+        startInfo.ArgumentList.Add("--api-host");
+        startInfo.ArgumentList.Add("0.0.0.0");
+        startInfo.ArgumentList.Add("--api-port");
+        startInfo.ArgumentList.Add(request.ApiPort.ToString());
+        startInfo.ArgumentList.Add("--headless");
+        startInfo.ArgumentList.Add("--jpeg-quality");
+        startInfo.ArgumentList.Add("60");
+        startInfo.ArgumentList.Add("--stream-fps");
+        startInfo.ArgumentList.Add("8");
+
+        if (!string.IsNullOrWhiteSpace(request.BackendToken))
+        {
+            startInfo.Environment["SMARTPARKING_API_TOKEN"] = request.BackendToken;
+        }
+
+        var process = new Process
+        {
+            StartInfo = startInfo,
+            EnableRaisingEvents = true
+        };
+
+        process.OutputDataReceived += (_, e) =>
+        {
+            if (!string.IsNullOrWhiteSpace(e.Data))
+            {
+                _logger.LogInformation("[ZoneCameraAI:{CameraId}] {Message}", request.CameraId, e.Data);
+            }
+        };
+        process.ErrorDataReceived += (_, e) =>
+        {
+            if (!string.IsNullOrWhiteSpace(e.Data))
+            {
+                _logger.LogWarning("[ZoneCameraAI:{CameraId}] {Message}", request.CameraId, e.Data);
+            }
+        };
+        process.Exited += (_, _) =>
+        {
+            lock (_sync)
+            {
+                if (_zoneCameraProcesses.TryGetValue(key, out var state) && state.Process.Id == process.Id)
+                {
+                    _zoneCameraProcesses.Remove(key);
+                }
+            }
+        };
+
+        if (!process.Start())
+        {
+            throw new InvalidOperationException("Failed to start zone camera process.");
+        }
+
+        process.BeginOutputReadLine();
+        process.BeginErrorReadLine();
+
+        var zoneState = new ZoneCameraProcessState(process, request);
+        lock (_sync)
+        {
+            _zoneCameraProcesses[key] = zoneState;
+        }
+
+        var healthUrl = BuildZoneHealthUrl(request);
+        var healthy = await WaitForHealthAsync(healthUrl, process, cancellationToken);
+        if (!healthy)
+        {
+            var exitCode = process.HasExited ? $" Exit code: {process.ExitCode}." : string.Empty;
+            CleanupFailedZoneStart(key, process);
+            throw new InvalidOperationException(
+                $"Zone camera service did not become ready at {healthUrl}.{exitCode}"
+            );
+        }
+
+        return BuildZoneStatus(zoneState, "Zone camera service started successfully.");
+    }
+
+    public Task<CameraStreamStatus> StopZoneAsync(string cameraId, int apiPort, CancellationToken cancellationToken = default)
+    {
+        var key = BuildZoneKey(cameraId, apiPort);
+        ZoneCameraProcessState? state;
+
+        lock (_sync)
+        {
+            if (!_zoneCameraProcesses.TryGetValue(key, out state))
+            {
+                return Task.FromResult(new CameraStreamStatus(
+                    false,
+                    null,
+                    string.Empty,
+                    string.Empty,
+                    string.Empty,
+                    "Zone camera service is already stopped."
+                ));
+            }
+
+            _zoneCameraProcesses.Remove(key);
+        }
+
+        StopProcess(state.Process, "zone camera process");
+
+        return Task.FromResult(new CameraStreamStatus(
+            false,
+            null,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            "Zone camera service stopped."
+        ));
+    }
+
+    public async Task<CameraStreamStatus> GetZoneStatusAsync(string cameraId, int apiPort, CancellationToken cancellationToken = default)
+    {
+        var key = BuildZoneKey(cameraId, apiPort);
+        ZoneCameraProcessState? state;
+
+        lock (_sync)
+        {
+            _zoneCameraProcesses.TryGetValue(key, out state);
+        }
+
+        if (state is null || state.Process.HasExited)
+        {
+            return new CameraStreamStatus(
+                false,
+                null,
+                string.Empty,
+                string.Empty,
+                string.Empty,
+                "Zone camera service is not running."
+            );
+        }
+
+        var healthy = await IsHealthyAsync(BuildZoneHealthUrl(state.Request), cancellationToken);
+        return BuildZoneStatus(state, healthy ? "Zone camera service is running." : "Zone camera process is running but stream is not ready.");
+    }
+
     public async Task<CameraStreamStatus> GetStatusAsync(CancellationToken cancellationToken = default)
     {
         CameraStartRequest? request;
@@ -191,6 +372,17 @@ public class CameraStreamService : ICameraStreamService, IDisposable
     public void Dispose()
     {
         _ = StopAsync();
+        List<ZoneCameraProcessState> zoneStates;
+        lock (_sync)
+        {
+            zoneStates = _zoneCameraProcesses.Values.ToList();
+            _zoneCameraProcesses.Clear();
+        }
+
+        foreach (var state in zoneStates)
+        {
+            StopProcess(state.Process, "zone camera process");
+        }
     }
 
     private CameraStreamStatus BuildStatus(string message)
@@ -238,6 +430,34 @@ public class CameraStreamService : ICameraStreamService, IDisposable
         }
     }
 
+    private static void ValidateZoneRequest(ZoneCameraStartRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.CameraIp))
+        {
+            throw new ArgumentException("Camera IP is required.");
+        }
+
+        if (request.CameraPort <= 0 || request.ApiPort <= 0)
+        {
+            throw new ArgumentException("Camera port and API port must be positive.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.ApiHost))
+        {
+            throw new ArgumentException("API host is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.CameraId))
+        {
+            throw new ArgumentException("Camera ID is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.LocationName))
+        {
+            throw new ArgumentException("Location name is required.");
+        }
+    }
+
     private static bool RequestMatches(CameraStartRequest? left, CameraStartRequest right)
     {
         return left is not null &&
@@ -248,6 +468,19 @@ public class CameraStreamService : ICameraStreamService, IDisposable
                string.Equals(left.StationMode, right.StationMode, StringComparison.OrdinalIgnoreCase);
     }
 
+    private static bool ZoneRequestMatches(ZoneCameraStartRequest left, ZoneCameraStartRequest right)
+    {
+        return string.Equals(left.CameraIp, right.CameraIp, StringComparison.OrdinalIgnoreCase) &&
+               left.CameraPort == right.CameraPort &&
+               string.Equals(left.ApiHost, right.ApiHost, StringComparison.OrdinalIgnoreCase) &&
+               left.ApiPort == right.ApiPort &&
+               string.Equals(left.CameraId, right.CameraId, StringComparison.OrdinalIgnoreCase) &&
+               string.Equals(left.LocationName, right.LocationName, StringComparison.Ordinal) &&
+               string.Equals(left.ParkingLotCode ?? string.Empty, right.ParkingLotCode ?? string.Empty, StringComparison.OrdinalIgnoreCase) &&
+               string.Equals(left.ZoneCode ?? string.Empty, right.ZoneCode ?? string.Empty, StringComparison.OrdinalIgnoreCase) &&
+               string.Equals(left.ColumnCode ?? string.Empty, right.ColumnCode ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+    }
+
     private static string BuildStreamUrl(CameraStartRequest request) =>
         $"http://{request.ApiHost}:{request.ApiPort}/api/stream";
 
@@ -256,6 +489,53 @@ public class CameraStreamService : ICameraStreamService, IDisposable
 
     private static string BuildHealthUrl(CameraStartRequest request) =>
         $"http://{request.ApiHost}:{request.ApiPort}/api/health";
+
+    private static string BuildZoneStreamUrl(ZoneCameraStartRequest request) =>
+        $"http://{request.ApiHost}:{request.ApiPort}/api/stream";
+
+    private static string BuildZoneDetectionUrl(ZoneCameraStartRequest request) =>
+        $"http://{request.ApiHost}:{request.ApiPort}/api/detection";
+
+    private static string BuildZoneHealthUrl(ZoneCameraStartRequest request) =>
+        $"http://{request.ApiHost}:{request.ApiPort}/api/health";
+
+    private static string BuildZoneKey(string cameraId, int apiPort) =>
+        $"{cameraId.Trim().ToUpperInvariant()}:{apiPort}";
+
+    private static void AddOptionalArgument(ProcessStartInfo startInfo, string name, string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return;
+        }
+
+        startInfo.ArgumentList.Add(name);
+        startInfo.ArgumentList.Add(value.Trim());
+    }
+
+    private static CameraStreamStatus BuildZoneStatus(ZoneCameraProcessState state, string message)
+    {
+        if (state.Process.HasExited)
+        {
+            return new CameraStreamStatus(
+                false,
+                null,
+                string.Empty,
+                string.Empty,
+                string.Empty,
+                message
+            );
+        }
+
+        return new CameraStreamStatus(
+            true,
+            state.Process.Id,
+            BuildZoneStreamUrl(state.Request),
+            BuildZoneDetectionUrl(state.Request),
+            BuildZoneHealthUrl(state.Request),
+            message
+        );
+    }
 
     private static string ResolvePythonExecutable()
     {
@@ -308,6 +588,45 @@ public class CameraStreamService : ICameraStreamService, IDisposable
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Failed to scan for stale camera processes.");
+        }
+    }
+
+    private void KillOrphanZoneCameraProcesses(int apiPort)
+    {
+        try
+        {
+            using var searcher = new System.Management.ManagementObjectSearcher(
+                "SELECT ProcessId, CommandLine FROM Win32_Process WHERE CommandLine LIKE '%webcam_zone_locator.py%'"
+            );
+
+            foreach (System.Management.ManagementObject processInfo in searcher.Get())
+            {
+                var commandLine = Convert.ToString(processInfo["CommandLine"]) ?? string.Empty;
+                if (!commandLine.Contains($"--api-port {apiPort}", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                var processId = Convert.ToInt32(processInfo["ProcessId"]);
+                try
+                {
+                    var process = Process.GetProcessById(processId);
+                    if (!process.HasExited)
+                    {
+                        _logger.LogWarning("Stopping stale zone camera process {ProcessId} on API port {ApiPort}.", processId, apiPort);
+                        process.Kill(entireProcessTree: true);
+                        process.WaitForExit(5000);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogDebug(ex, "Unable to stop stale zone camera process {ProcessId}.", processId);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to scan for stale zone camera processes.");
         }
     }
 
@@ -379,4 +698,39 @@ public class CameraStreamService : ICameraStreamService, IDisposable
             process.Dispose();
         }
     }
+
+    private void CleanupFailedZoneStart(string key, Process process)
+    {
+        lock (_sync)
+        {
+            if (_zoneCameraProcesses.TryGetValue(key, out var state) && state.Process.Id == process.Id)
+            {
+                _zoneCameraProcesses.Remove(key);
+            }
+        }
+
+        StopProcess(process, "zone camera process after startup failure");
+    }
+
+    private void StopProcess(Process process, string processName)
+    {
+        try
+        {
+            if (!process.HasExited)
+            {
+                process.Kill(entireProcessTree: true);
+                process.WaitForExit(5000);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed while stopping {ProcessName}.", processName);
+        }
+        finally
+        {
+            process.Dispose();
+        }
+    }
+
+    private sealed record ZoneCameraProcessState(Process Process, ZoneCameraStartRequest Request);
 }

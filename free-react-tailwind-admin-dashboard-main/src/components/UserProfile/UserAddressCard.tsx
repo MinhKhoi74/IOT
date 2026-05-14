@@ -34,7 +34,7 @@ export default function UserAddressCard() {
   };
 
   if (loading) {
-    return <div className="p-5 text-center">Loading...</div>;
+    return <div className="p-5 text-center">Đang tải...</div>;
   }
 
   return (
@@ -43,7 +43,7 @@ export default function UserAddressCard() {
         <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <h4 className="text-lg font-semibold text-gray-800 dark:text-white/90 lg:mb-6">
-              Account Information
+              Thông tin tài khoản
             </h4>
 
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-7 2xl:gap-x-32">
@@ -58,7 +58,7 @@ export default function UserAddressCard() {
 
               <div>
                 <p className="mb-2 text-xs leading-normal text-gray-500 dark:text-gray-400">
-                  Phone Number
+                  Số điện thoại
                 </p>
                 <p className="text-sm font-medium text-gray-800 dark:text-white/90">
                   {user?.phoneNumber || "N/A"}
@@ -67,7 +67,7 @@ export default function UserAddressCard() {
 
               <div>
                 <p className="mb-2 text-xs leading-normal text-gray-500 dark:text-gray-400">
-                  Branch
+                  Chi nhánh
                 </p>
                 <p className="text-sm font-medium text-gray-800 dark:text-white/90">
                   {user?.branch?.name || "N/A"}
@@ -76,7 +76,7 @@ export default function UserAddressCard() {
 
               <div>
                 <p className="mb-2 text-xs leading-normal text-gray-500 dark:text-gray-400">
-                  Wallet Balance
+                  Số dư ví
                 </p>
                 <p className="text-sm font-medium text-gray-800 dark:text-white/90">
                   {(user?.wallet?.balance || 0).toLocaleString("vi-VN")} VND
@@ -85,7 +85,7 @@ export default function UserAddressCard() {
 
               <div>
                 <p className="mb-2 text-xs leading-normal text-gray-500 dark:text-gray-400">
-                  Vehicles
+                  Xe đã đăng ký
                 </p>
                 <p className="text-sm font-medium text-gray-800 dark:text-white/90">
                   {user?.vehicles?.length || 0}
@@ -94,7 +94,7 @@ export default function UserAddressCard() {
 
               <div>
                 <p className="mb-2 text-xs leading-normal text-gray-500 dark:text-gray-400">
-                  Recent Sessions
+                  Lượt gửi xe gần đây
                 </p>
                 <p className="text-sm font-medium text-gray-800 dark:text-white/90">
                   {user?.recentParkingHistory?.length || 0}
@@ -122,7 +122,7 @@ export default function UserAddressCard() {
                 fill=""
               />
             </svg>
-            Edit
+            Sửa
           </button>
         </div>
       </div>
@@ -130,10 +130,10 @@ export default function UserAddressCard() {
         <div className="relative w-full p-4 overflow-y-auto bg-white no-scrollbar rounded-3xl dark:bg-gray-900 lg:p-11">
           <div className="px-2 pr-14">
             <h4 className="mb-2 text-2xl font-semibold text-gray-800 dark:text-white/90">
-              Edit Account Information
+              Chỉnh sửa thông tin tài khoản
             </h4>
             <p className="mb-6 text-sm text-gray-500 dark:text-gray-400 lg:mb-7">
-              Update your details to keep your profile up-to-date.
+              Cập nhật thông tin để hồ sơ luôn chính xác.
             </p>
           </div>
           <form className="flex flex-col">
@@ -145,27 +145,27 @@ export default function UserAddressCard() {
                 </div>
 
                 <div>
-                  <Label>Phone Number</Label>
+                  <Label>Số điện thoại</Label>
                   <Input type="text" value={user?.phoneNumber || ""} />
                 </div>
 
                 <div>
-                  <Label>Full Name</Label>
+                  <Label>Họ tên</Label>
                   <Input type="text" value={user?.fullName || ""} />
                 </div>
 
                 <div>
-                  <Label>Branch</Label>
+                  <Label>Chi nhánh</Label>
                   <Input type="text" value={user?.branch?.name || ""} disabled />
                 </div>
               </div>
             </div>
             <div className="flex items-center gap-3 px-2 mt-6 lg:justify-end">
               <Button size="sm" variant="outline" onClick={closeModal}>
-                Close
+                Đóng
               </Button>
               <Button size="sm" onClick={handleSave}>
-                Save Changes
+                Lưu thay đổi
               </Button>
             </div>
           </form>

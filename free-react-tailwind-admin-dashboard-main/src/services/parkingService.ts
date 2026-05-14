@@ -80,10 +80,10 @@ export const formatCheckoutPaymentMessage = (
   const plate = plateNumber.toUpperCase().trim();
 
   if (paymentStatus?.toLowerCase() === "paid") {
-    return `Xe ${plate} da thanh toan`;
+    return `Xe ${plate} đã thanh toán`;
   }
 
-  return `Xe ${plate} chua thanh toan. Phi can thu: ${feeAmount.toLocaleString("vi-VN")}d`;
+  return `Xe ${plate} chưa thanh toán. Phí cần thu: ${feeAmount.toLocaleString("vi-VN")}đ`;
 };
 
 export const parkingService = {

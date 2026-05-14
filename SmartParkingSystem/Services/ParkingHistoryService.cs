@@ -60,10 +60,14 @@ namespace SmartParking.Services
                 .Where(x => x.PaymentStatus == "Paid")
                 .SumAsync(x => x.FeeAmount);
 
+            var monthlyPassRevenue = await _context.WalletTransactions
+                .Where(x => x.ReferenceType == "MonthlyPass" && x.Type == "MonthlyPassRevenue")
+                .SumAsync(x => (decimal?)x.Amount) ?? 0m;
+
             return new ParkingDashboardDto
             {
                 ActiveVehicleCount = activeVehicleCount,
-                TotalRevenue = totalRevenue,
+                TotalRevenue = totalRevenue + monthlyPassRevenue,
                 Sessions = sessions
             };
         }

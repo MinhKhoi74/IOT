@@ -175,3 +175,56 @@ class ParkingHistoryItem {
         status: json['status']?.toString() ?? '',
       );
 }
+
+class VehicleLocationInfo {
+  const VehicleLocationInfo({
+    required this.id,
+    required this.licensePlate,
+    required this.cameraId,
+    required this.locationName,
+    required this.confidence,
+    this.imageBase64,
+    this.fullFrameImageBase64,
+    required this.detectedAt,
+    required this.status,
+    required this.severity,
+    required this.message,
+    this.parkingLotCode,
+    this.zoneCode,
+    this.columnCode,
+  });
+
+  final int id;
+  final String licensePlate;
+  final String cameraId;
+  final String locationName;
+  final double confidence;
+  final String? imageBase64;
+  final String? fullFrameImageBase64;
+  final DateTime detectedAt;
+  final String status;
+  final String severity;
+  final String message;
+  final String? parkingLotCode;
+  final String? zoneCode;
+  final String? columnCode;
+
+  factory VehicleLocationInfo.fromJson(Map<String, dynamic> json) =>
+      VehicleLocationInfo(
+        id: (json['id'] as num? ?? 0).toInt(),
+        licensePlate: json['licensePlate']?.toString() ?? '',
+        cameraId: json['cameraId']?.toString() ?? '',
+        locationName: json['locationName']?.toString() ?? '',
+        confidence: (json['confidence'] as num? ?? 0).toDouble(),
+        imageBase64: json['imageBase64']?.toString(),
+        fullFrameImageBase64: json['fullFrameImageBase64']?.toString(),
+        detectedAt: DateTime.tryParse(json['detectedAt']?.toString() ?? '') ??
+            DateTime.now(),
+        status: json['status']?.toString() ?? '',
+        severity: json['severity']?.toString() ?? '',
+        message: json['message']?.toString() ?? '',
+        parkingLotCode: json['parkingLotCode']?.toString(),
+        zoneCode: json['zoneCode']?.toString(),
+        columnCode: json['columnCode']?.toString(),
+      );
+}

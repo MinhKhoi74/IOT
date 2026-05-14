@@ -24,9 +24,27 @@ namespace SmartParking.Controllers
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-            await _vehicleService.CreateVehicleAsync(userId, dto);
+            await _vehicleService.CreateVehicleAsync(userId!, dto);
 
             return Ok();
+        }
+
+        [HttpPost("admin")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> CreateByAdmin(CreateVehicleDto dto)
+        {
+            if (string.IsNullOrWhiteSpace(dto.UserId))
+                return BadRequest(new { message = "UserId is required." });
+
+            await _vehicleService.CreateVehicleForUserAsync(dto.UserId, dto);
+            return Ok();
+        }
+
+        [HttpGet("admin")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetAllVehicles()
+        {
+            return Ok(await _vehicleService.GetAllVehiclesAsync());
         }
 
         [HttpGet]
@@ -34,7 +52,7 @@ namespace SmartParking.Controllers
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-            var result = await _vehicleService.GetMyVehiclesAsync(userId);
+            var result = await _vehicleService.GetMyVehiclesAsync(userId!);
 
             return Ok(result);
         }
@@ -44,7 +62,7 @@ namespace SmartParking.Controllers
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-            await _vehicleService.UpdateVehicleAsync(id, userId, dto);
+            await _vehicleService.UpdateVehicleAsync(id, userId!, dto);
 
             return Ok();
         }
@@ -54,8 +72,16 @@ namespace SmartParking.Controllers
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-            await _vehicleService.DeleteVehicleAsync(id, userId);
+            await _vehicleService.DeleteVehicleAsync(id, userId!);
 
+            return Ok();
+        }
+
+        [HttpDelete("admin/{id}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> DeleteByAdmin(Guid id)
+        {
+            await _vehicleService.DeleteVehicleByAdminAsync(id);
             return Ok();
         }
     }

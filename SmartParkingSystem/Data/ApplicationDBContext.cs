@@ -24,6 +24,7 @@ namespace SmartParking.Data
         public DbSet<Vehicle> Vehicle { get; set; }
         public DbSet<ElectronicTicket> ElectronicTickets { get; set; }
         public DbSet<CheckInOut> CheckInOuts { get; set; }
+        public DbSet<VehicleLocationDetection> VehicleLocationDetections { get; set; }
         public DbSet<MonthlyPass> MonthlyPasses { get; set; }
         public DbSet<Wallet> Wallets { get; set; }
         public DbSet<WalletTransaction> WalletTransactions { get; set; }

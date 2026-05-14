@@ -64,6 +64,31 @@ latest_capture_ts = 0.0
 last_vehicle_event = None
 
 
+def is_client_disconnect_error(exc):
+    """Return True for normal browser/client disconnects from MJPEG streams."""
+    if isinstance(exc, (BrokenPipeError, ConnectionResetError, ConnectionAbortedError)):
+        return True
+    if isinstance(exc, TimeoutError):
+        return True
+    if isinstance(exc, OSError):
+        # Windows socket errors commonly seen when a browser refreshes/closes
+        # an MJPEG connection: WSAENOTSOCK, WSAECONNABORTED, WSAECONNRESET,
+        # WSAETIMEDOUT.
+        if getattr(exc, "winerror", None) in (10038, 10053, 10054, 10060):
+            return True
+        if getattr(exc, "errno", None) in (32, 54, 10038, 10053, 10054, 10060):
+            return True
+    return False
+
+
+class QuietThreadingHTTPServer(ThreadingHTTPServer):
+    def handle_error(self, request, client_address):
+        _, exc, _ = sys.exc_info()
+        if is_client_disconnect_error(exc):
+            return
+        super().handle_error(request, client_address)
+
+
 def signal_handler(sig, frame):
     """Handle Ctrl+C."""
     logger.info("\n[INTERRUPT] Shutting down...")
@@ -462,18 +487,27 @@ def make_api_handler(station, jpeg_quality, stream_fps):
 
         def send_json_response(self, status_code, payload):
             body = json.dumps(payload).encode('utf-8')
-            self.send_response(status_code)
-            self.send_header('Content-Type', 'application/json')
-            self.send_header('Content-Length', str(len(body)))
-            self.send_cors_headers()
-            self.end_headers()
-            self.wfile.write(body)
+            try:
+                self.send_response(status_code)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Content-Length', str(len(body)))
+                self.send_cors_headers()
+                self.end_headers()
+                self.wfile.write(body)
+            except Exception as exc:
+                if not is_client_disconnect_error(exc):
+                    raise
+                return
 
         def do_OPTIONS(self):
-            self.send_response(204)
-            self.send_cors_headers()
-            self.send_header('Content-Length', '0')
-            self.end_headers()
+            try:
+                self.send_response(204)
+                self.send_cors_headers()
+                self.send_header('Content-Length', '0')
+                self.end_headers()
+            except Exception as exc:
+                if not is_client_disconnect_error(exc):
+                    raise
 
         def do_GET(self):
             path = urlparse(self.path).path
@@ -492,13 +526,18 @@ def make_api_handler(station, jpeg_quality, stream_fps):
                 return
 
             if path == '/api/stream':
-                self.send_response(200)
-                self.send_header('Content-Type', 'multipart/x-mixed-replace; boundary=frame')
-                self.send_header('Cache-Control', 'no-cache, no-store, must-revalidate')
-                self.send_header('Pragma', 'no-cache')
-                self.send_header('X-Accel-Buffering', 'no')
-                self.send_cors_headers()
-                self.end_headers()
+                try:
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'multipart/x-mixed-replace; boundary=frame')
+                    self.send_header('Cache-Control', 'no-cache, no-store, must-revalidate')
+                    self.send_header('Pragma', 'no-cache')
+                    self.send_header('X-Accel-Buffering', 'no')
+                    self.send_cors_headers()
+                    self.end_headers()
+                except Exception as exc:
+                    if not is_client_disconnect_error(exc):
+                        raise
+                    return
 
                 last_streamed_frame = -1
                 while not stop_event.is_set():
@@ -529,14 +568,20 @@ def make_api_handler(station, jpeg_quality, stream_fps):
                         self.wfile.write(b'\r\n')
                         self.wfile.flush()
                         time.sleep(frame_delay)
-                    except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
+                    except Exception as exc:
+                        if not is_client_disconnect_error(exc):
+                            raise
                         break
                 return
 
-            self.send_response(404)
-            self.send_cors_headers()
-            self.send_header('Content-Length', '0')
-            self.end_headers()
+            try:
+                self.send_response(404)
+                self.send_cors_headers()
+                self.send_header('Content-Length', '0')
+                self.end_headers()
+            except Exception as exc:
+                if not is_client_disconnect_error(exc):
+                    raise
 
     return CameraApiHandler
 
@@ -544,7 +589,7 @@ def make_api_handler(station, jpeg_quality, stream_fps):
 def start_api_server(host, port, station, jpeg_quality, stream_fps):
     global api_server
     handler = make_api_handler(station, jpeg_quality, stream_fps)
-    api_server = ThreadingHTTPServer((host, port), handler)
+    api_server = QuietThreadingHTTPServer((host, port), handler)
     server_t = threading.Thread(
         target=api_server.serve_forever,
         daemon=True,

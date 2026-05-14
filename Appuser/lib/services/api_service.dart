@@ -51,7 +51,8 @@ class ApiService {
     return AppUser.fromJson(json['user'] as Map<String, dynamic>);
   }
 
-  Future<AppUser> register(String fullName, String email, String password) async {
+  Future<AppUser> register(
+      String fullName, String email, String password) async {
     final json = await _post('/auth/register', {
       'fullName': fullName,
       'email': email,
@@ -91,7 +92,7 @@ class ApiService {
   ) async {
     return _post('/wallet/top-up/momo', {
       'amount': amount,
-      'description': 'Nap tien vi SmartParking',
+      'description': 'Nạp tiền ví SmartParking',
       'paymentMethod': paymentMethod,
     });
   }
@@ -120,7 +121,16 @@ class ApiService {
   Future<List<ParkingHistoryItem>> getParkingHistory() async {
     final data = await _getList('/parking/history/me');
     return data
-        .map((item) => ParkingHistoryItem.fromJson(item as Map<String, dynamic>))
+        .map(
+            (item) => ParkingHistoryItem.fromJson(item as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<List<VehicleLocationInfo>> getVehicleLocations() async {
+    final data = await _getList('/parking/vehicle-locations/me');
+    return data
+        .map((item) =>
+            VehicleLocationInfo.fromJson(item as Map<String, dynamic>))
         .toList();
   }
 
@@ -160,6 +170,10 @@ class ApiService {
     });
   }
 
+  Future<void> deleteVehicle(String id) async {
+    await _delete('/vehicles/$id');
+  }
+
   Future<void> registerMonthlyPass({
     required String licensePlate,
     required String ownerName,
@@ -194,10 +208,11 @@ class ApiService {
     final response = await _client.get(_uri(path), headers: _headers());
     final data = _decode(response);
     if (data is List) return data;
-    throw ApiException('Du lieu tra ve khong hop le.');
+    throw ApiException('Dữ liệu trả về không hợp lệ.');
   }
 
-  Future<Map<String, dynamic>> _post(String path, Map<String, dynamic> body) async {
+  Future<Map<String, dynamic>> _post(
+      String path, Map<String, dynamic> body) async {
     final response = await _client.post(
       _uri(path),
       headers: _headers(),
@@ -206,7 +221,8 @@ class ApiService {
     return _decodeMap(response);
   }
 
-  Future<Map<String, dynamic>> _put(String path, Map<String, dynamic> body) async {
+  Future<Map<String, dynamic>> _put(
+      String path, Map<String, dynamic> body) async {
     final response = await _client.put(
       _uri(path),
       headers: _headers(),
@@ -215,18 +231,24 @@ class ApiService {
     return _decodeMap(response);
   }
 
+  Future<Map<String, dynamic>> _delete(String path) async {
+    final response = await _client.delete(_uri(path), headers: _headers());
+    return _decodeMap(response);
+  }
+
   Uri _uri(String path) => Uri.parse('$baseUrl$path');
 
   Map<String, String> _headers() => {
         'Content-Type': 'application/json',
-        if (_token != null && _token!.isNotEmpty) 'Authorization': 'Bearer $_token',
+        if (_token != null && _token!.isNotEmpty)
+          'Authorization': 'Bearer $_token',
       };
 
   Map<String, dynamic> _decodeMap(http.Response response) {
     final data = _decode(response);
     if (data is Map<String, dynamic>) return data;
     if (response.statusCode >= 200 && response.statusCode < 300) return {};
-    throw ApiException('Du lieu tra ve khong hop le.');
+    throw ApiException('Dữ liệu trả về không hợp lệ.');
   }
 
   dynamic _decode(http.Response response) {
@@ -234,6 +256,6 @@ class ApiService {
     final data = text.isEmpty ? null : jsonDecode(text);
     if (response.statusCode >= 200 && response.statusCode < 300) return data;
     final message = data is Map ? data['message']?.toString() : null;
-    throw ApiException(message ?? 'Loi ${response.statusCode}: $text');
+    throw ApiException(message ?? 'Lỗi ${response.statusCode}: $text');
   }
 }

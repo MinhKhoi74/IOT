@@ -100,11 +100,18 @@ class PlateVotingBuffer:
         if any(p != first for p in plates[1:]):
             return None
 
-        avg_conf = sum(float(conf) for _, _, conf in tail) / float(required)
+        confidences = [float(conf) for _, _, conf in tail]
+        avg_conf = sum(confidences) / float(required)
+        min_conf = min(confidences)
+        # A confirmed streak should be stable, not just have one very high frame.
+        # Blend average and weakest frame so noisy reads are reflected in the score.
+        calibrated_conf = (avg_conf * 0.7) + (min_conf * 0.3)
         return {
             "plate": str(first),
             "count": required,
-            "avg_conf": float(avg_conf),
+            "avg_conf": float(max(0.0, min(1.0, calibrated_conf))),
+            "raw_avg_conf": float(avg_conf),
+            "min_conf": float(min_conf),
             "ratio": 1.0,
             "is_vn": bool(self._is_valid_vietnam_plate(first)),
         }

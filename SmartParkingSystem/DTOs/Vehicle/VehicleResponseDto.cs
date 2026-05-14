@@ -8,6 +8,12 @@ namespace SmartParking.DTOs.Vehicle
 
         public string LicensePlate { get; set; }
 
+        public string? UserId { get; set; }
+
+        public string? OwnerName { get; set; }
+
+        public string? OwnerEmail { get; set; }
+
         public VehicleType VehicleType { get; set; }
 
         public string Brand { get; set; }

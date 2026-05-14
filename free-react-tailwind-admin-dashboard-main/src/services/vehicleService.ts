@@ -2,84 +2,57 @@ import apiCall from "./api";
 
 export interface Vehicle {
   id: string;
-  plateNumber: string;
+  licensePlate: string;
+  userId?: string | null;
+  ownerName?: string | null;
+  ownerEmail?: string | null;
+  vehicleType: number | string;
   brand: string;
-  model: string;
   color: string;
-  ownerId: string;
-  ownerName: string;
-  registrationDate: string;
-  status: string;
+  isDefault: boolean;
 }
 
 export interface CreateVehicleDto {
-  plateNumber: string;
+  licensePlate: string;
+  userId?: string;
+  vehicleType: number;
   brand: string;
-  model: string;
   color: string;
-  ownerId: string;
+  isDefault?: boolean;
 }
 
 export interface UpdateVehicleDto {
-  brand?: string;
-  model?: string;
-  color?: string;
-  status?: string;
+  brand: string;
+  color: string;
+  isDefault: boolean;
 }
 
 export const vehicleService = {
-  // Get all vehicles
-  getAll: async (page?: number, pageSize?: number): Promise<any> => {
-    const query = new URLSearchParams();
-    if (page) query.append("page", page.toString());
-    if (pageSize) query.append("pageSize", pageSize.toString());
-
-    return apiCall<any>(`/vehicles?${query.toString()}`, {
-      method: "GET",
-    });
+  getMine: async (): Promise<Vehicle[]> => {
+    return apiCall<Vehicle[]>("/vehicles", { method: "GET" });
   },
 
-  // Get vehicle by plate number
-  getByPlateNumber: async (plateNumber: string): Promise<Vehicle> => {
-    return apiCall<Vehicle>(`/vehicles/plate/${plateNumber}`, {
-      method: "GET",
-    });
+  getAll: async (): Promise<Vehicle[]> => {
+    return apiCall<Vehicle[]>("/vehicles/admin", { method: "GET" });
   },
 
-  // Get vehicle by ID
-  getById: async (id: string): Promise<Vehicle> => {
-    return apiCall<Vehicle>(`/vehicles/${id}`, {
-      method: "GET",
-    });
+  create: async (data: CreateVehicleDto): Promise<void> => {
+    return apiCall<void>("/vehicles", { method: "POST", body: data });
   },
 
-  // Create new vehicle
-  create: async (data: CreateVehicleDto): Promise<Vehicle> => {
-    return apiCall<Vehicle>("/vehicles", {
-      method: "POST",
-      body: data,
-    });
+  createByAdmin: async (data: CreateVehicleDto): Promise<void> => {
+    return apiCall<void>("/vehicles/admin", { method: "POST", body: data });
   },
 
-  // Update vehicle
-  update: async (id: string, data: UpdateVehicleDto): Promise<Vehicle> => {
-    return apiCall<Vehicle>(`/vehicles/${id}`, {
-      method: "PUT",
-      body: data,
-    });
+  update: async (id: string, data: UpdateVehicleDto): Promise<void> => {
+    return apiCall<void>(`/vehicles/${id}`, { method: "PUT", body: data });
   },
 
-  // Delete vehicle
   delete: async (id: string): Promise<void> => {
-    return apiCall<void>(`/vehicles/${id}`, {
-      method: "DELETE",
-    });
+    return apiCall<void>(`/vehicles/${id}`, { method: "DELETE" });
   },
 
-  // Get vehicle parking history
-  getParkingHistory: async (plateNumber: string): Promise<any[]> => {
-    return apiCall<any[]>(`/vehicles/${plateNumber}/parking-history`, {
-      method: "GET",
-    });
+  deleteByAdmin: async (id: string): Promise<void> => {
+    return apiCall<void>(`/vehicles/admin/${id}`, { method: "DELETE" });
   },
 };

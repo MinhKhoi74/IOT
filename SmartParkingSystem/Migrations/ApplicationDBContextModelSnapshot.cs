@@ -620,6 +620,104 @@ namespace SmartParking.Migrations
                     b.ToTable("Vehicle");
                 });
 
+            modelBuilder.Entity("SmartParking.Models.VehicleLocationDetection", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CameraId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int?>("CheckInOutId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ColumnCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<float>("Confidence")
+                        .HasColumnType("real");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("DetectedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("FullFrameImageBase64")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ImageBase64")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsLatest")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("LicensePlate")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("LocationName")
+                        .IsRequired()
+                        .HasMaxLength(250)
+                        .HasColumnType("nvarchar(250)");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("ParkingLotCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Severity")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<string>("UserId")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<Guid?>("VehicleId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ZoneCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CheckInOutId");
+
+                    b.HasIndex("DetectedAt")
+                        .HasDatabaseName("IX_VehicleLocation_DetectedAt");
+
+                    b.HasIndex("LicensePlate")
+                        .IsUnique()
+                        .HasDatabaseName("IX_VehicleLocation_UniquePlate");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("IX_VehicleLocation_Status");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("VehicleId");
+
+                    b.ToTable("VehicleLocationDetections");
+                });
+
             modelBuilder.Entity("SmartParking.Models.Wallet", b =>
                 {
                     b.Property<Guid>("Id")
@@ -872,6 +970,30 @@ namespace SmartParking.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("SmartParking.Models.VehicleLocationDetection", b =>
+                {
+                    b.HasOne("SmartParking.Models.CheckInOut", "CheckInOut")
+                        .WithMany()
+                        .HasForeignKey("CheckInOutId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("SmartParking.Models.Identity.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("SmartParking.Models.Vehicle", "Vehicle")
+                        .WithMany()
+                        .HasForeignKey("VehicleId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.Navigation("CheckInOut");
+
+                    b.Navigation("User");
+
+                    b.Navigation("Vehicle");
                 });
 
             modelBuilder.Entity("SmartParking.Models.Wallet", b =>

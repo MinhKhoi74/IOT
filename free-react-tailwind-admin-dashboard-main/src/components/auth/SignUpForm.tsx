@@ -28,17 +28,17 @@ export default function SignUpForm() {
           className="inline-flex items-center text-sm text-gray-500 transition-colors hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
         >
           <ChevronLeftIcon className="size-5" />
-          Back to dashboard
+          Quay lại tổng quan
         </Link>
       </div>
       <div className="flex flex-col justify-center flex-1 w-full max-w-md mx-auto">
         <div>
           <div className="mb-5 sm:mb-8">
             <h1 className="mb-2 font-semibold text-gray-800 text-title-sm dark:text-white/90 sm:text-title-md">
-              Sign Up
+              Đăng ký
             </h1>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Enter your email and password to sign up!
+              Nhập email và mật khẩu để đăng ký.
             </p>
           </div>
           <div>
@@ -68,7 +68,7 @@ export default function SignUpForm() {
                     fill="#EB4335"
                   />
                 </svg>
-                Sign up with Google
+                Đăng ký bằng Google
               </button>
               <button className="inline-flex items-center justify-center gap-3 py-3 text-sm font-normal text-gray-700 transition-colors bg-gray-100 rounded-lg px-7 hover:bg-gray-200 hover:text-gray-800 dark:bg-white/5 dark:text-white/90 dark:hover:bg-white/10">
                 <svg
@@ -81,7 +81,7 @@ export default function SignUpForm() {
                 >
                   <path d="M15.6705 1.875H18.4272L12.4047 8.75833L19.4897 18.125H13.9422L9.59717 12.4442L4.62554 18.125H1.86721L8.30887 10.7625L1.51221 1.875H7.20054L11.128 7.0675L15.6705 1.875ZM14.703 16.475H16.2305L6.37054 3.43833H4.73137L14.703 16.475Z" />
                 </svg>
-                Sign up with X
+                Đăng ký bằng X
               </button>
             </div>
             <div className="relative py-3 sm:py-5">
@@ -90,7 +90,7 @@ export default function SignUpForm() {
               </div>
               <div className="relative flex justify-center text-sm">
                 <span className="p-2 text-gray-400 bg-white dark:bg-gray-900 sm:px-5 sm:py-2">
-                  Or
+                  Hoặc
                 </span>
               </div>
             </div>
@@ -100,12 +100,12 @@ export default function SignUpForm() {
                 setError("");
                 
                 if (password !== confirmPassword) {
-                  setError("Passwords do not match");
+                  setError("Mật khẩu xác nhận không khớp");
                   return;
                 }
 
                 if (!isChecked) {
-                  setError("Please agree to the Terms and Conditions");
+                  setError("Vui lòng đồng ý với điều khoản sử dụng");
                   return;
                 }
 
@@ -114,7 +114,7 @@ export default function SignUpForm() {
                   await register(email, password, firstName, lastName);
                   navigate("/");
                 } catch (err) {
-                  setError(err instanceof Error ? err.message : "Registration failed");
+                  setError(err instanceof Error ? err.message : "Đăng ký thất bại");
                 } finally {
                   setIsLoading(false);
                 }
@@ -130,11 +130,11 @@ export default function SignUpForm() {
                   {/* <!-- First Name --> */}
                   <div className="sm:col-span-1">
                     <Label>
-                      First Name<span className="text-error-500">*</span>
+                      Tên<span className="text-error-500">*</span>
                     </Label>
                     <Input
                       type="text"
-                      placeholder="Enter your first name"
+                      placeholder="Nhập tên"
                       value={firstName}
                       onChange={(e) => setFirstName(e.target.value)}
                       required
@@ -143,11 +143,11 @@ export default function SignUpForm() {
                   {/* <!-- Last Name --> */}
                   <div className="sm:col-span-1">
                     <Label>
-                      Last Name<span className="text-error-500">*</span>
+                      Họ<span className="text-error-500">*</span>
                     </Label>
                     <Input
                       type="text"
-                      placeholder="Enter your last name"
+                      placeholder="Nhập họ"
                       value={lastName}
                       onChange={(e) => setLastName(e.target.value)}
                       required
@@ -161,7 +161,7 @@ export default function SignUpForm() {
                   </Label>
                   <Input
                     type="email"
-                    placeholder="Enter your email"
+                    placeholder="Nhập email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
@@ -170,11 +170,11 @@ export default function SignUpForm() {
                 {/* <!-- Password --> */}
                 <div>
                   <Label>
-                    Password<span className="text-error-500">*</span>
+                    Mật khẩu<span className="text-error-500">*</span>
                   </Label>
                   <div className="relative">
                     <Input
-                      placeholder="Enter your password"
+                      placeholder="Nhập mật khẩu"
                       type={showPassword ? "text" : "password"}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
@@ -195,11 +195,11 @@ export default function SignUpForm() {
                 {/* <!-- Confirm Password --> */}
                 <div>
                   <Label>
-                    Confirm Password<span className="text-error-500">*</span>
+                    Xác nhận mật khẩu<span className="text-error-500">*</span>
                   </Label>
                   <div className="relative">
                     <Input
-                      placeholder="Confirm your password"
+                      placeholder="Nhập lại mật khẩu"
                       type={showConfirmPassword ? "text" : "password"}
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
@@ -225,13 +225,13 @@ export default function SignUpForm() {
                     onChange={setIsChecked}
                   />
                   <p className="inline-block font-normal text-sm text-gray-500 dark:text-gray-400">
-                    By creating an account means you agree to the{" "}
+                    Khi tạo tài khoản, bạn đồng ý với{" "}
                     <span className="text-gray-800 dark:text-white/90">
-                      Terms and Conditions,
+                      Điều khoản sử dụng,
                     </span>{" "}
-                    and our{" "}
+                    và{" "}
                     <span className="text-gray-800 dark:text-white">
-                      Privacy Policy
+                      Chính sách bảo mật
                     </span>
                   </p>
                 </div>
@@ -243,7 +243,7 @@ export default function SignUpForm() {
                     type="submit"
                     disabled={isLoading}
                   >
-                    {isLoading ? "Creating account..." : "Sign Up"}
+                    {isLoading ? "Đang tạo tài khoản..." : "Đăng ký"}
                   </Button>
                 </div>
               </div>
@@ -251,12 +251,12 @@ export default function SignUpForm() {
 
             <div className="mt-5">
               <p className="text-sm font-normal text-center text-gray-700 dark:text-gray-400 sm:text-start">
-                Already have an account? {""}
+                Đã có tài khoản? {""}
                 <Link
                   to="/signin"
                   className="text-brand-500 hover:text-brand-600 dark:text-brand-400"
                 >
-                  Sign In
+                  Đăng nhập
                 </Link>
               </p>
             </div>

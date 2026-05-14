@@ -11,10 +11,15 @@ import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 // Parking Pages
 import ParkingCheckIn from "./pages/Parking/CheckIn";
 import ParkingCheckOut from "./pages/Parking/CheckOut";
+import ParkingZoneCameras from "./pages/Parking/ZoneCameras";
+import VehicleLocationNotificationDetail from "./pages/Notifications/VehicleLocationNotificationDetail";
 
 // Admin Pages
 import StaffManagement from "./pages/Admin/CustomersManagement";
 import MonthlyPasses from "./pages/Admin/MonthlyPasses";
+import UsersManagement from "./pages/Admin/UsersManagement";
+import AdminVehiclesManagement from "./pages/Admin/AdminVehiclesManagement";
+import ParkingStructureManagement from "./pages/Admin/ParkingStructureManagement";
 
 export default function App() {
   return (
@@ -44,11 +49,31 @@ export default function App() {
               path="/parking/check-out"
               element={<ProtectedRoute element={<ParkingCheckOut />} requiredRole={["Staff", "Admin"]} />}
             />
+            <Route
+              path="/parking/zone-cameras"
+              element={<ProtectedRoute element={<ParkingZoneCameras />} requiredRole={["Staff", "Admin"]} />}
+            />
+            <Route
+              path="/notifications/vehicle-location/:id"
+              element={<ProtectedRoute element={<VehicleLocationNotificationDetail />} requiredRole={["Staff", "Admin"]} />}
+            />
 
             {/* Admin Routes */}
             <Route
               path="/admin/staff"
               element={<ProtectedRoute element={<StaffManagement />} requiredRole="Admin" />}
+            />
+            <Route
+              path="/admin/users"
+              element={<ProtectedRoute element={<UsersManagement />} requiredRole="Admin" />}
+            />
+            <Route
+              path="/admin/vehicles"
+              element={<ProtectedRoute element={<AdminVehiclesManagement />} requiredRole="Admin" />}
+            />
+            <Route
+              path="/admin/parking-structure"
+              element={<ProtectedRoute element={<ParkingStructureManagement />} requiredRole="Admin" />}
             />
             <Route
               path="/admin/monthly-passes"

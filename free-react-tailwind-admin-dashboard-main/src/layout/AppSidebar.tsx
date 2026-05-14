@@ -22,29 +22,33 @@ type NavItem = {
 const navItems: NavItem[] = [
   {
     icon: <GridIcon />,
-    name: "Dashboard",
-    subItems: [{ name: "Home", path: "/", pro: false }],
+    name: "Tổng quan",
+    subItems: [{ name: "Trang chủ", path: "/", pro: false }],
   },
   {
     icon: <UserCircleIcon />,
-    name: "User Profile",
+    name: "Hồ sơ",
     path: "/profile",
   },
   {
-    name: "Parking Control",
+    name: "Vận hành bãi xe",
     icon: <ListIcon />,
     subItems: [
-      { name: "Check-In", path: "/parking/check-in", pro: false },
-      { name: "Check-Out", path: "/parking/check-out", pro: false },
+      { name: "Xe vào", path: "/parking/check-in", pro: false },
+      { name: "Xe ra", path: "/parking/check-out", pro: false },
+      { name: "Camera khu vực", path: "/parking/zone-cameras", pro: false },
     ].map((item) => ({ ...item, roles: ["Staff", "Admin"] })),
   },
   {
-    name: "Admin Management",
+    name: "Quản trị",
     icon: <UserCircleIcon />,
     roles: ["Admin"],
     subItems: [
-      { name: "Staff", path: "/admin/staff", pro: false },
-      { name: "Monthly Passes", path: "/admin/monthly-passes", pro: false, roles: ["Admin"] },
+      { name: "Người dùng", path: "/admin/users", pro: false },
+      { name: "Nhân viên", path: "/admin/staff", pro: false },
+      { name: "Xe đã đăng ký", path: "/admin/vehicles", pro: false },
+      { name: "Cấu trúc bãi", path: "/admin/parking-structure", pro: false },
+      { name: "Vé tháng", path: "/admin/monthly-passes", pro: false, roles: ["Admin"] },
     ],
   },
 ];
@@ -128,7 +132,7 @@ const AppSidebar: React.FC = () => {
           <div className="flex flex-col gap-4">
             {/* Menu Label */}
             <h2 className={`mb-4 text-xs uppercase flex leading-[20px] text-gray-400 ${!isExpanded && !isHovered ? "lg:justify-center" : "justify-start"}`}>
-              {isExpanded || isHovered || isMobileOpen ? "Menu" : <HorizontaLDots className="size-6" />}
+              {isExpanded || isHovered || isMobileOpen ? "Danh mục" : <HorizontaLDots className="size-6" />}
             </h2>
 
             {/* Render Nav Items */}

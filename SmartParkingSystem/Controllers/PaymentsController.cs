@@ -70,7 +70,7 @@ namespace SmartParking.Controllers
                 }
                 else if (string.Equals(target, "monthly-pass", StringComparison.OrdinalIgnoreCase))
                 {
-                    await HandleMonthlyPassPaymentAsync(extraData);
+                    await HandleMonthlyPassPaymentAsync(notification, extraData);
                 }
                 else
                 {
@@ -220,7 +220,7 @@ namespace SmartParking.Controllers
                 notification.OrderId);
         }
 
-        private async Task HandleMonthlyPassPaymentAsync(Dictionary<string, string> extraData)
+        private async Task HandleMonthlyPassPaymentAsync(MomoPaymentNotificationDto notification, Dictionary<string, string> extraData)
         {
             if (!extraData.TryGetValue("userId", out var userId) || string.IsNullOrWhiteSpace(userId))
             {
@@ -250,6 +250,29 @@ namespace SmartParking.Controllers
             }
 
             extraData.TryGetValue("ownerPhone", out var ownerPhone);
+
+            var alreadyRecorded = await _context.WalletTransactions.AnyAsync(x =>
+                x.ReferenceType == "MonthlyPass" &&
+                x.ReferenceId == notification.OrderId);
+
+            if (!alreadyRecorded)
+            {
+                var wallet = await _walletService.EnsureWalletAsync(userId);
+                _context.WalletTransactions.Add(new Models.WalletTransaction
+                {
+                    Id = Guid.NewGuid(),
+                    WalletId = wallet.Id,
+                    Type = "MonthlyPassRevenue",
+                    Amount = notification.Amount,
+                    BalanceBefore = wallet.Balance,
+                    BalanceAfter = wallet.Balance,
+                    ReferenceType = "MonthlyPass",
+                    ReferenceId = notification.OrderId,
+                    Description = $"Doanh thu vé tháng {licensePlate}",
+                    CreatedAt = DateTime.Now
+                });
+                await _context.SaveChangesAsync();
+            }
 
             await _monthlyPassService.RegisterForUserAsync(userId, new MonthlyPassUpsertRequest
             {

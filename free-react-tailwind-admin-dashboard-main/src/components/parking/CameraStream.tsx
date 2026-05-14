@@ -96,7 +96,7 @@ export const CameraStream: React.FC<CameraStreamProps> = ({
       const numericCameraPort = Number(cameraPort);
       const numericApiPort = Number(apiPort);
       if (!cameraIp.trim() || !Number.isFinite(numericCameraPort) || !Number.isFinite(numericApiPort)) {
-        throw new Error("Camera IP, camera port, and Python API port must be valid.");
+        throw new Error("IP camera, cổng camera và cổng Python API phải hợp lệ.");
       }
 
       const status = await cameraService.start({
@@ -111,7 +111,7 @@ export const CameraStream: React.FC<CameraStreamProps> = ({
       const apiBaseUrl = `http://${apiHost.trim() || "localhost"}:${numericApiPort}`;
       const healthResponse = await fetch(`${apiBaseUrl}/api/health`);
       if (!healthResponse.ok) {
-        throw new Error("Python stream service is not available.");
+        throw new Error("Dịch vụ Python stream chưa sẵn sàng.");
       }
 
       const nextStreamUrl = `${apiBaseUrl}/api/stream?t=${Date.now()}`;
@@ -131,8 +131,8 @@ export const CameraStream: React.FC<CameraStreamProps> = ({
       startDetectionPolling(apiBaseUrl);
     } catch (error) {
       const errorMessage =
-        error instanceof Error ? error.message : "Failed to connect camera stream.";
-      console.error("Failed to connect camera stream:", error);
+        error instanceof Error ? error.message : "Không kết nối được luồng camera.";
+      console.error("Không kết nối được luồng camera:", error);
       setConnectionError(errorMessage);
       setIsActive(false);
     } finally {
@@ -189,8 +189,8 @@ export const CameraStream: React.FC<CameraStreamProps> = ({
             confidence: data.lastEvent.confidence,
             success: data.lastEvent.success,
             message: data.lastEvent.success
-              ? `${stationMode === "exit" ? "Checkout" : "Check-in"} detected: ${data.lastEvent.plate}`
-              : data.lastEvent.message || `${stationMode === "exit" ? "Checkout" : "Check-in"} not recorded: ${data.lastEvent.plate}`,
+              ? `${stationMode === "exit" ? "Xe ra" : "Xe vào"} đã nhận diện: ${data.lastEvent.plate}`
+              : data.lastEvent.message || `${stationMode === "exit" ? "Xe ra" : "Xe vào"} chưa được ghi nhận: ${data.lastEvent.plate}`,
             imageBase64: capture?.imageBase64,
             action: data.lastEvent.action,
           });
@@ -224,15 +224,15 @@ export const CameraStream: React.FC<CameraStreamProps> = ({
             plateNumber: bestMatch.plate,
             confidence: bestMatch.confidence,
             success: true,
-            message: `${stationMode === "exit" ? "Checkout" : "Check-in"} detected: ${bestMatch.plate}`,
+            message: `${stationMode === "exit" ? "Xe ra" : "Xe vào"} đã nhận diện: ${bestMatch.plate}`,
             imageBase64: currentCapture?.imageBase64,
             action,
           });
         }
       } catch (error) {
-        console.error("Failed to fetch detection:", error);
+        console.error("Không lấy được dữ liệu nhận diện:", error);
         setDetectionError(
-          error instanceof Error ? error.message : "Failed to fetch detection."
+          error instanceof Error ? error.message : "Không lấy được dữ liệu nhận diện."
         );
       }
     };
@@ -281,17 +281,17 @@ export const CameraStream: React.FC<CameraStreamProps> = ({
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
       <div className="p-4 md:p-6">
         <h2 className="text-lg md:text-xl font-semibold text-gray-800 dark:text-white mb-4">
-          Live Python Camera Frame
+          Khung camera Python trực tiếp
         </h2>
 
         <div className="mb-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
           <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-            IPWebcam Configuration
+            Cấu hình IPWebcam
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                Camera IP Address
+                Địa chỉ IP camera
               </label>
               <input
                 type="text"
@@ -304,7 +304,7 @@ export const CameraStream: React.FC<CameraStreamProps> = ({
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                Camera Port
+                Cổng camera
               </label>
               <input
                 type="text"
@@ -317,7 +317,7 @@ export const CameraStream: React.FC<CameraStreamProps> = ({
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                Python API Host
+                Máy chủ Python API
               </label>
               <input
                 type="text"
@@ -330,7 +330,7 @@ export const CameraStream: React.FC<CameraStreamProps> = ({
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                Python API Port
+                Cổng Python API
               </label>
               <input
                 type="text"
@@ -343,7 +343,7 @@ export const CameraStream: React.FC<CameraStreamProps> = ({
             </div>
           </div>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-            Python command:
+            Lệnh Python:
             {" "}
             <code className="bg-gray-200 dark:bg-gray-600 px-1 py-0.5 rounded">
               python webcam_smart_lowlatency.py --ip {cameraIp}:{cameraPort}
@@ -370,7 +370,7 @@ export const CameraStream: React.FC<CameraStreamProps> = ({
         {detectionError && (
           <div className="mb-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
             <p className="text-sm text-yellow-700 dark:text-yellow-300">
-              Detection polling issue: {detectionError}
+              Lỗi lấy dữ liệu nhận diện: {detectionError}
             </p>
           </div>
         )}
@@ -383,7 +383,7 @@ export const CameraStream: React.FC<CameraStreamProps> = ({
             alt="Camera Stream"
             onError={() => {
               setConnectionError(
-                "Failed to load MJPEG stream. Check IPWebcam and Python API server."
+                "Không tải được luồng MJPEG. Kiểm tra IPWebcam và Python API server."
               );
             }}
           />
@@ -394,10 +394,10 @@ export const CameraStream: React.FC<CameraStreamProps> = ({
                 isActive ? "bg-green-500" : "bg-gray-500"
               }`}
             >
-              {isActive ? "Live" : "Offline"}
+              {isActive ? "Đang chạy" : "Tạm dừng"}
             </div>
             <div className="text-right text-xs text-gray-300">
-              <div>Phone: {cameraIp}:{cameraPort}</div>
+              <div>Điện thoại: {cameraIp}:{cameraPort}</div>
               <div>Overlay API: {apiHost}:{apiPort}</div>
             </div>
           </div>
@@ -406,7 +406,7 @@ export const CameraStream: React.FC<CameraStreamProps> = ({
             <div className="absolute bottom-4 left-4 right-4 bg-black/70 text-white p-3 rounded-lg">
               <p className="text-lg font-mono font-bold">{lastPlate}</p>
               <p className="text-sm text-gray-300">
-                Confidence: {(detectionConfidence * 100).toFixed(1)}%
+                Độ tin cậy: {(detectionConfidence * 100).toFixed(1)}%
               </p>
             </div>
           )}
@@ -414,7 +414,7 @@ export const CameraStream: React.FC<CameraStreamProps> = ({
 
         {streamUrl && (
           <p className="mb-4 text-xs text-gray-500 dark:text-gray-400 break-all">
-            Stream URL: {streamUrl}
+            URL luồng: {streamUrl}
           </p>
         )}
 
@@ -435,14 +435,14 @@ export const CameraStream: React.FC<CameraStreamProps> = ({
                 : "bg-green-500 hover:bg-green-600"
             }`}
           >
-            {isStarting ? "Connecting..." : isActive ? "Stop Stream" : "Start Python Stream"}
+            {isStarting ? "Đang kết nối..." : isActive ? "Dừng luồng" : "Khởi động luồng Python"}
           </button>
 
         </div>
 
         <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
           <p className="text-sm text-gray-600 dark:text-gray-300">
-            <span className="font-medium">Station ID:</span> {stationId}
+            <span className="font-medium">Mã trạm:</span> {stationId}
           </p>
         </div>
       </div>

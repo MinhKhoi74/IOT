@@ -13,17 +13,20 @@ namespace SmartParking.Controllers
         private readonly ICheckInService _checkInService;
         private readonly ICheckOutService _checkOutService;
         private readonly IParkingHistoryService _parkingHistoryService;
+        private readonly IVehicleLocationService _vehicleLocationService;
         private readonly ILogger<ParkingController> _logger;
 
         public ParkingController(
             ICheckInService checkInService,
             ICheckOutService checkOutService,
             IParkingHistoryService parkingHistoryService,
+            IVehicleLocationService vehicleLocationService,
             ILogger<ParkingController> logger)
         {
             _checkInService = checkInService;
             _checkOutService = checkOutService;
             _parkingHistoryService = parkingHistoryService;
+            _vehicleLocationService = vehicleLocationService;
             _logger = logger;
         }
 
@@ -195,6 +198,69 @@ namespace SmartParking.Controllers
             }
 
             return Ok(await _parkingHistoryService.GetMyHistoryAsync(userId));
+        }
+
+        [HttpPost("location-detection")]
+        [Authorize(Roles = "Staff,Admin")]
+        [Produces("application/json")]
+        [ProducesResponseType(typeof(VehicleLocationDetectionResult), StatusCodes.Status200OK)]
+        public async Task<IActionResult> ProcessLocationDetection([FromBody] VehicleLocationDetectionRequest request)
+        {
+            if (!ModelState.IsValid)
+            {
+                LogValidationErrors("LocationDetection");
+                return ValidationProblem(ModelState);
+            }
+
+            var result = await _vehicleLocationService.ProcessDetectionAsync(request);
+            return Ok(result);
+        }
+
+        [HttpPost("location-detections/batch")]
+        [Authorize(Roles = "Staff,Admin")]
+        [Produces("application/json")]
+        [ProducesResponseType(typeof(VehicleLocationDetectionBatchResult), StatusCodes.Status200OK)]
+        public async Task<IActionResult> ProcessLocationDetectionBatch([FromBody] VehicleLocationDetectionBatchRequest request)
+        {
+            if (!ModelState.IsValid)
+            {
+                LogValidationErrors("LocationDetectionBatch");
+                return ValidationProblem(ModelState);
+            }
+
+            var result = await _vehicleLocationService.ProcessDetectionBatchAsync(request);
+            return Ok(result);
+        }
+
+        [HttpGet("vehicle-locations/me")]
+        [Authorize]
+        [Produces("application/json")]
+        public async Task<IActionResult> GetMyVehicleLocations()
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                return Unauthorized();
+            }
+
+            return Ok(await _vehicleLocationService.GetMyLatestLocationsAsync(userId));
+        }
+
+        [HttpGet("vehicle-location-alerts")]
+        [Authorize(Roles = "Staff,Admin")]
+        [Produces("application/json")]
+        public async Task<IActionResult> GetVehicleLocationAlerts([FromQuery] int take = 50)
+        {
+            return Ok(await _vehicleLocationService.GetRecentAlertsAsync(take));
+        }
+
+        [HttpGet("vehicle-location-alerts/{id:int}")]
+        [Authorize(Roles = "Staff,Admin")]
+        [Produces("application/json")]
+        public async Task<IActionResult> GetVehicleLocationAlert(int id)
+        {
+            var alert = await _vehicleLocationService.GetLocationAlertAsync(id);
+            return alert is null ? NotFound(new { message = "Vehicle location alert not found" }) : Ok(alert);
         }
 
         private void LogValidationErrors(string actionName)

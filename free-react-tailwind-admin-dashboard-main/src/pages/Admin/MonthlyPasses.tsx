@@ -48,10 +48,10 @@ export default function MonthlyPasses() {
       setOwnerName("");
       setOwnerPhone("");
       setIsActive(true);
-      setMessage("Monthly pass saved.");
+      setMessage("Đã lưu vé tháng.");
       await loadPasses();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Failed to save monthly pass.");
+      setMessage(error instanceof Error ? error.message : "Không lưu được vé tháng.");
     } finally {
       setIsSaving(false);
     }
@@ -65,17 +65,17 @@ export default function MonthlyPasses() {
   return (
     <>
       <PageMeta
-        title="Monthly Passes | Smart Parking"
-        description="Manage monthly paid vehicles"
+        title="Vé tháng | Smart Parking"
+        description="Quản lý xe đăng ký vé tháng"
       />
 
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
-            Monthly Passes
+            Vé tháng
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
-            Vehicles in this list can check out without parking fee.
+            Xe trong danh sách này được ra bãi theo hiệu lực vé tháng.
           </p>
         </div>
 
@@ -85,26 +85,26 @@ export default function MonthlyPasses() {
           </div>
         )}
 
-        <ComponentCard title="Add Or Update Monthly Pass">
+        <ComponentCard title="Thêm hoặc cập nhật vé tháng">
           <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <input
               value={licensePlate}
               onChange={(event) => setLicensePlate(event.target.value.toUpperCase())}
-              placeholder="License plate"
+              placeholder="Biển số"
               className="rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
               required
             />
             <input
               value={ownerName}
               onChange={(event) => setOwnerName(event.target.value)}
-              placeholder="Owner name"
+              placeholder="Tên chủ xe"
               className="rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
               required
             />
             <input
               value={ownerPhone}
               onChange={(event) => setOwnerPhone(event.target.value)}
-              placeholder="Owner phone"
+              placeholder="Số điện thoại"
               className="rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
             />
             <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
@@ -113,7 +113,7 @@ export default function MonthlyPasses() {
                 checked={isActive}
                 onChange={(event) => setIsActive(event.target.checked)}
               />
-              Active
+              Đang hiệu lực
             </label>
             <input
               type="date"
@@ -131,22 +131,22 @@ export default function MonthlyPasses() {
               disabled={isSaving}
               className="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700 disabled:bg-gray-400 md:col-span-2"
             >
-              {isSaving ? "Saving..." : "Save Monthly Pass"}
+              {isSaving ? "Đang lưu..." : "Lưu vé tháng"}
             </button>
           </form>
         </ComponentCard>
 
-        <ComponentCard title="Paid Monthly Vehicles">
+        <ComponentCard title="Xe có vé tháng">
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead>
                 <tr className="border-b text-left text-gray-500 dark:border-gray-800">
-                  <th className="px-3 py-2">Plate</th>
-                  <th className="px-3 py-2">Owner</th>
-                  <th className="px-3 py-2">Phone</th>
-                  <th className="px-3 py-2">Valid</th>
-                  <th className="px-3 py-2">Status</th>
-                  <th className="px-3 py-2">Action</th>
+                  <th className="px-3 py-2">Biển số</th>
+                  <th className="px-3 py-2">Chủ xe</th>
+                  <th className="px-3 py-2">Điện thoại</th>
+                  <th className="px-3 py-2">Hiệu lực</th>
+                  <th className="px-3 py-2">Trạng thái</th>
+                  <th className="px-3 py-2">Thao tác</th>
                 </tr>
               </thead>
               <tbody>
@@ -158,13 +158,13 @@ export default function MonthlyPasses() {
                     <td className="px-3 py-2">
                       {new Date(pass.validFrom).toLocaleDateString()} - {new Date(pass.validTo).toLocaleDateString()}
                     </td>
-                    <td className="px-3 py-2">{pass.isActive ? "Active" : "Inactive"}</td>
+                    <td className="px-3 py-2">{pass.isActive ? "Đang hiệu lực" : "Ngưng hiệu lực"}</td>
                     <td className="px-3 py-2">
                       <button
                         onClick={() => void handleDelete(pass.id)}
                         className="rounded bg-red-500 px-3 py-1 text-white hover:bg-red-600"
                       >
-                        Delete
+                        Xóa
                       </button>
                     </td>
                   </tr>

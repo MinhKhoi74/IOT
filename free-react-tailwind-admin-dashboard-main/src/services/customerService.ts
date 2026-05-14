@@ -59,6 +59,15 @@ export interface CreateStaffDto {
   branchId: string;
 }
 
+export interface CreateUserDto {
+  email: string;
+  password: string;
+  fullName: string;
+  phoneNumber?: string;
+  role: "Customer" | "Staff" | "Manager";
+  branchId?: string;
+}
+
 export const customerService = {
   getProfile: async (): Promise<Customer> => {
     return apiCall<Customer>("/users/profile", { method: "GET" });
@@ -71,8 +80,12 @@ export const customerService = {
     });
   },
 
-  getAll: async (): Promise<Customer[]> => {
+  getStaff: async (): Promise<Customer[]> => {
     return apiCall<Customer[]>("/users/staff-list", { method: "GET" });
+  },
+
+  getAll: async (): Promise<Customer[]> => {
+    return apiCall<Customer[]>("/users/list", { method: "GET" });
   },
 
   getBranches: async (): Promise<BranchInfo[]> => {
@@ -86,7 +99,32 @@ export const customerService = {
     });
   },
 
+  createUser: async (data: CreateUserDto): Promise<{ message: string; userId?: string; staffId?: string }> => {
+    if (data.role === "Customer") {
+      return apiCall<{ message: string; userId: string }>("/users/create-customer", {
+        method: "POST",
+        body: data,
+      });
+    }
+
+    if (data.role === "Manager") {
+      return apiCall<{ message: string; userId: string }>("/users/create-manager", {
+        method: "POST",
+        body: data,
+      });
+    }
+
+    return apiCall<{ message: string; staffId: string }>("/users/create-staff", {
+      method: "POST",
+      body: data,
+    });
+  },
+
   delete: async (id: string): Promise<void> => {
+    return apiCall<void>(`/users/${id}`, { method: "DELETE" });
+  },
+
+  deleteStaff: async (id: string): Promise<void> => {
     return apiCall<void>(`/users/staff/${id}`, { method: "DELETE" });
   },
 };

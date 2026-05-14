@@ -18,6 +18,11 @@ namespace SmartParking.Services
 
         public async Task CreateVehicleAsync(string userId, CreateVehicleDto dto)
         {
+            await CreateVehicleForUserAsync(userId, dto);
+        }
+
+        public async Task CreateVehicleForUserAsync(string userId, CreateVehicleDto dto)
+        {
             var exists = await _context.Vehicle
                 .AnyAsync(x => x.LicensePlate == dto.LicensePlate);
 
@@ -56,6 +61,29 @@ namespace SmartParking.Services
                 {
                     Id = x.Id,
                     LicensePlate = x.LicensePlate,
+                    UserId = x.UserId,
+                    OwnerName = x.User.FullName,
+                    OwnerEmail = x.User.Email,
+                    VehicleType = x.VehicleType,
+                    Brand = x.Brand,
+                    Color = x.Color,
+                    IsDefault = x.IsDefault
+                })
+                .ToListAsync();
+        }
+
+        public async Task<List<VehicleResponseDto>> GetAllVehiclesAsync()
+        {
+            return await _context.Vehicle
+                .Include(x => x.User)
+                .OrderBy(x => x.LicensePlate)
+                .Select(x => new VehicleResponseDto
+                {
+                    Id = x.Id,
+                    LicensePlate = x.LicensePlate,
+                    UserId = x.UserId,
+                    OwnerName = x.User.FullName,
+                    OwnerEmail = x.User.Email,
                     VehicleType = x.VehicleType,
                     Brand = x.Brand,
                     Color = x.Color,
@@ -96,9 +124,39 @@ namespace SmartParking.Services
             if (vehicle == null)
                 throw new Exception("Vehicle not found");
 
+            await EnsureVehicleCanBeDeletedAsync(vehicle.LicensePlate);
+
             _context.Vehicle.Remove(vehicle);
 
             await _context.SaveChangesAsync();
+        }
+
+        public async Task DeleteVehicleByAdminAsync(Guid id)
+        {
+            var vehicle = await _context.Vehicle.FirstOrDefaultAsync(x => x.Id == id);
+            if (vehicle == null)
+                throw new Exception("Vehicle not found");
+
+            await EnsureVehicleCanBeDeletedAsync(vehicle.LicensePlate);
+
+            _context.Vehicle.Remove(vehicle);
+            await _context.SaveChangesAsync();
+        }
+
+        private async Task EnsureVehicleCanBeDeletedAsync(string licensePlate)
+        {
+            var plate = (licensePlate ?? string.Empty).Trim().ToUpperInvariant().Replace(" ", "");
+            var now = DateTime.Now;
+            var hasActivePass = await _context.MonthlyPasses.AnyAsync(x =>
+                x.LicensePlate.ToUpper().Replace(" ", "") == plate &&
+                x.IsActive &&
+                x.ValidFrom <= now &&
+                x.ValidTo >= now);
+
+            if (hasActivePass)
+            {
+                throw new Exception("Vehicle has an active monthly pass and cannot be deleted.");
+            }
         }
     }
 }

@@ -155,6 +155,10 @@ namespace SmartParking.Services
             foreach (var user in users)
             {
                 var roles = await _userManager.GetRolesAsync(user);
+                var branch = user.BranchId.HasValue
+                    ? await _context.Branches.AsNoTracking().FirstOrDefaultAsync(b => b.Id == user.BranchId)
+                    : null;
+
                 result.Add(new UserListDto
                 {
                     Id = user.Id,
@@ -162,7 +166,15 @@ namespace SmartParking.Services
                     Email = user.Email,
                     PhoneNumber = user.PhoneNumber,
                     Roles = roles.ToArray(),
-                    IsActive = user.IsActive
+                    IsActive = user.IsActive,
+                    Branch = branch == null
+                        ? null
+                        : new BranchInfoDto
+                        {
+                            Id = branch.Id,
+                            Name = branch.Name,
+                            Address = branch.Address
+                        }
                 });
             }
 

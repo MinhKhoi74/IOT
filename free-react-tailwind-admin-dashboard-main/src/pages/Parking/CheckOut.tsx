@@ -31,7 +31,7 @@ export default function ParkingCheckOut() {
         confidence: conf,
         imageBase64,
         success: previous?.success ?? false,
-        message: previous?.message || "Plate detected at checkout",
+        message: previous?.message || "Đã nhận diện biển số tại cổng ra",
         action: previous?.action,
       }));
     }
@@ -160,7 +160,7 @@ export default function ParkingCheckOut() {
     if (event.message === "__STREAM_STARTED__") {
       setCheckoutEvent({
         ...event,
-        message: "Waiting for checkout plate...",
+        message: "Đang chờ biển số xe ra...",
       });
       return;
     }
@@ -190,7 +190,7 @@ export default function ParkingCheckOut() {
 
   const handleCheckOut = async () => {
     if (!plateNumber) {
-      setErrorMessage("Please capture a plate number first");
+      setErrorMessage("Vui lòng quét biển số trước");
       return;
     }
 
@@ -226,7 +226,7 @@ export default function ParkingCheckOut() {
       }));
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : "Check-out failed"
+        error instanceof Error ? error.message : "Ghi nhận xe ra thất bại"
       );
     } finally {
       setIsProcessing(false);
@@ -263,7 +263,7 @@ export default function ParkingCheckOut() {
       }));
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : "Payment confirmation failed"
+        error instanceof Error ? error.message : "Xác nhận thanh toán thất bại"
       );
     } finally {
       setIsProcessing(false);
@@ -276,17 +276,17 @@ export default function ParkingCheckOut() {
   return (
     <>
       <PageMeta
-        title="Vehicle Check-Out | Smart Parking"
-        description="Check-out vehicle by license plate recognition"
+        title="Xe ra | Smart Parking"
+        description="Ghi nhận xe ra bằng nhận diện biển số"
       />
       <div className="space-y-6">
         {/* Header */}
         <div>
           <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
-            Vehicle Check-Out
+            Xe ra
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
-            Record vehicle exit using camera recognition
+            Ghi nhận xe ra bằng camera nhận diện biển số
           </p>
         </div>
 
@@ -332,12 +332,12 @@ export default function ParkingCheckOut() {
 
           {/* Check-Out Form */}
           <div className="lg:col-span-1">
-            <ComponentCard title="Check-Out Details">
+            <ComponentCard title="Thông tin xe ra">
               <div className="space-y-4">
                 {/* Station Selection */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Exit Station ID
+                    Mã trạm ra
                   </label>
                   <select
                     value={stationId}
@@ -353,7 +353,7 @@ export default function ParkingCheckOut() {
                 {/* Plate Number */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Plate Number
+                    Biển số
                   </label>
                   <input
                     type="text"
@@ -367,7 +367,7 @@ export default function ParkingCheckOut() {
                 {/* Confidence */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Detection Confidence
+                    Độ tin cậy nhận diện
                   </label>
                   <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2">
                     <div
@@ -383,15 +383,14 @@ export default function ParkingCheckOut() {
                 {/* Info Box */}
                 <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
                   <p className="text-xs text-blue-700 dark:text-blue-400">
-                    <span className="font-semibold">Info:</span> Open camera, capture
-                    the license plate at exit, and click Check-Out to record vehicle departure.
+                    <span className="font-semibold">Thông tin:</span> Mở camera, quét biển số tại cổng ra và bấm ghi nhận xe ra nếu cần thao tác thủ công.
                   </p>
                 </div>
 
                 {checkoutEvent?.imageBase64 && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Check-Out Camera Frame
+                      Ảnh xe ra
                     </label>
                     <img
                       src={`data:image/jpeg;base64,${checkoutEvent.imageBase64}`}
@@ -413,7 +412,7 @@ export default function ParkingCheckOut() {
                           : "bg-orange-500 hover:bg-orange-600 disabled:bg-gray-400"
                     }`}
                   >
-                    {isProcessing ? "Processing..." : checkoutStatusText || "Check-Out"}
+                    {isProcessing ? "Đang xử lý..." : checkoutStatusText || "Ghi nhận xe ra"}
                   </button>
 
                   <button
@@ -421,7 +420,7 @@ export default function ParkingCheckOut() {
                     disabled={!needsCashConfirmation || isProcessing}
                     className="w-full px-4 py-3 rounded-lg font-semibold text-white bg-green-600 hover:bg-green-700 disabled:bg-gray-400 transition"
                   >
-                    {isProcessing ? "Confirming..." : "Confirm Cash Payment"}
+                    {isProcessing ? "Đang xác nhận..." : "Xác nhận thu tiền mặt"}
                   </button>
                 </div>
               </div>
