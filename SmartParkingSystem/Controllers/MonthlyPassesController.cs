@@ -30,6 +30,30 @@ namespace SmartParking.Controllers
             return Ok(await _monthlyPassService.GetAllAsync());
         }
 
+        [HttpGet("price")]
+        public async Task<IActionResult> GetPrice()
+        {
+            return Ok(new MonthlyPassPriceDto
+            {
+                MonthlyAmount = await _monthlyPassService.GetMonthlyAmountAsync()
+            });
+        }
+
+        [HttpPut("price")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> UpdatePrice([FromBody] MonthlyPassPriceDto request)
+        {
+            try
+            {
+                var monthlyAmount = await _monthlyPassService.SetMonthlyAmountAsync(request.MonthlyAmount);
+                return Ok(new MonthlyPassPriceDto { MonthlyAmount = monthlyAmount });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
         [HttpPost]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Upsert([FromBody] MonthlyPassUpsertRequest request)
@@ -87,6 +111,9 @@ namespace SmartParking.Controllers
                 return Unauthorized();
             }
 
+            var amount = await _monthlyPassService.CalculateAmountAsync(request.ValidFrom, request.ValidTo);
+            request.Amount = amount;
+
             var extraData = Convert.ToBase64String(Encoding.UTF8.GetBytes(
                 JsonSerializer.Serialize(new Dictionary<string, string>
                 {
@@ -96,12 +123,13 @@ namespace SmartParking.Controllers
                     ["ownerName"] = request.OwnerName.Trim(),
                     ["ownerPhone"] = request.OwnerPhone?.Trim() ?? string.Empty,
                     ["validFrom"] = request.ValidFrom.ToString("O"),
-                    ["validTo"] = request.ValidTo.ToString("O")
+                    ["validTo"] = request.ValidTo.ToString("O"),
+                    ["amount"] = amount.ToString(System.Globalization.CultureInfo.InvariantCulture)
                 })));
 
             var payment = await _momoService.CreatePaymentAsync(new MomoCreatePaymentRequestDto
             {
-                Amount = request.Amount,
+                Amount = amount,
                 OrderId = $"monthly-{userId}-{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}",
                 RequestId = $"monthly-{Guid.NewGuid():N}",
                 OrderInfo = $"Mua ve thang SmartParking cho xe {request.LicensePlate.Trim().ToUpperInvariant()}",

@@ -5,6 +5,7 @@
         public Guid Id { get; set; }
         public string Name { get; set; }
         public string Address { get; set; }
+        public int MaxVehicleCapacity { get; set; }
         public List<ParkingLotDetailDto> ParkingLots { get; set; } = new();
     }
 }

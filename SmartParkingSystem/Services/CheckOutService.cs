@@ -70,6 +70,7 @@ namespace SmartParking.Services
                 var checkinTime = await _redis.GetCheckinTimeAsync(plate);
                 var checkinRecord = await _context.CheckInOuts
                     .Where(c => c.LicensePlate == plate && c.Status == "Active")
+                    .Where(c => !request.BranchId.HasValue || c.BranchId == request.BranchId.Value)
                     .OrderByDescending(c => c.CheckInTime)
                     .FirstOrDefaultAsync();
 
@@ -121,6 +122,7 @@ namespace SmartParking.Services
 
                 await UpdateElectronicTicketAsync(checkinRecord, plate, now, fee);
                 await _redis.RemoveCheckinAsync(plate);
+                await DeleteVehicleLocationAsync(checkinRecord.LicensePlate, checkinRecord.BranchId);
 
                 var feeText = hasMonthlyPass ? "- Ve thang" : "- Mien phi";
                 _logger.LogInformation("Checkout - {Plate} - {Time:dd/M/yyyy - HH:mm} {FeeText}", plate, now, feeText);
@@ -198,6 +200,7 @@ namespace SmartParking.Services
             _context.CheckInOuts.Update(checkinRecord);
             await _context.SaveChangesAsync();
             await _redis.RemoveCheckinAsync(checkinRecord.LicensePlate);
+            await DeleteVehicleLocationAsync(checkinRecord.LicensePlate, checkinRecord.BranchId);
             await NotifyDashboardUpdatedAsync("payment-confirmed", checkinRecord);
             await _arduinoSerialService.SendCheckOutOkAsync(checkinRecord.LicensePlate);
 
@@ -310,7 +313,7 @@ namespace SmartParking.Services
 
         private async Task NotifyDashboardUpdatedAsync(string type, CheckInOut session)
         {
-            await _parkingHub.Clients.All.SendAsync("ParkingDashboardUpdated", new
+            var dashboardPayload = new
             {
                 type,
                 checkInOutId = session.Id,
@@ -319,7 +322,24 @@ namespace SmartParking.Services
                 checkOutTime = session.CheckOutTime,
                 paymentStatus = session.PaymentStatus,
                 status = session.Status
-            });
+            };
+
+            await _parkingHub.Clients.Group(ParkingHub.AdminGroup)
+                .SendAsync("ParkingDashboardUpdated", dashboardPayload);
+            if (session.BranchId.HasValue)
+            {
+                await _parkingHub.Clients.Group(ParkingHub.BranchGroup(session.BranchId.Value))
+                    .SendAsync("ParkingDashboardUpdated", dashboardPayload);
+            }
+        }
+
+        private async Task DeleteVehicleLocationAsync(string plate, Guid? branchId)
+        {
+            var normalizedPlate = plate.ToUpperInvariant().Replace(" ", "");
+            await _context.VehicleLocationDetections
+                .Where(x => x.LicensePlate.Replace(" ", "") == normalizedPlate)
+                .Where(x => !branchId.HasValue || x.BranchId == branchId.Value)
+                .ExecuteDeleteAsync();
         }
 
         private static string EncodeExtraData(Dictionary<string, string> data)

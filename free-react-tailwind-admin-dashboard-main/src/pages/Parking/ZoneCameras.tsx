@@ -1,10 +1,17 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import PageMeta from "../../components/common/PageMeta";
 import ComponentCard from "../../components/common/ComponentCard";
 import {
   ZoneCameraEvent,
+  ZoneLocationOption,
   ZoneCameraStream,
 } from "../../components/parking/ZoneCameraStream";
+import { useAuth } from "../../context/AuthContext";
+import {
+  Branch,
+  BranchFull,
+  parkingStructureService,
+} from "../../services/parkingStructureService";
 
 const cameraPresets = [
   {
@@ -58,9 +65,50 @@ const cameraPresets = [
 ];
 
 export default function ParkingZoneCameras() {
+  const { user } = useAuth();
   const [events, setEvents] = useState<ZoneCameraEvent[]>([]);
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [branchFull, setBranchFull] = useState<BranchFull | null>(null);
+  const [selectedBranchId, setSelectedBranchId] = useState(user?.branch?.id || "");
+  const activeBranchId = selectedBranchId || user?.branch?.id || undefined;
 
   const latestEvents = useMemo(() => events.slice(0, 8), [events]);
+  const locationOptions = useMemo<ZoneLocationOption[]>(() => {
+    if (!branchFull) return [];
+    return branchFull.parkingLots.flatMap((lot) =>
+      lot.zones.flatMap((zone) =>
+        zone.slots.map((slot) => ({
+          locationName: `${lot.name} - ${zone.name} - ${slot.slotCode}`,
+          parkingLot: lot.name,
+          zone: zone.name,
+          column: slot.slotCode,
+        }))
+      )
+    );
+  }, [branchFull]);
+
+  useEffect(() => {
+    const loadBranches = async () => {
+      try {
+        const items = await parkingStructureService.branches();
+        setBranches(items);
+        if (!selectedBranchId && items.length > 0) {
+          setSelectedBranchId(user?.branch?.id || items[0].id);
+        }
+      } catch (error) {
+        console.error("Failed to load branches:", error);
+      }
+    };
+
+    void loadBranches();
+  }, [selectedBranchId, user?.branch?.id]);
+
+  useEffect(() => {
+    if (!activeBranchId) return;
+    parkingStructureService.branchFull(activeBranchId)
+      .then(setBranchFull)
+      .catch((error) => console.error("Failed to load branch structure:", error));
+  }, [activeBranchId]);
 
   const handleEvent = (event: ZoneCameraEvent) => {
     setEvents((previous) => [
@@ -89,10 +137,27 @@ export default function ParkingZoneCameras() {
           <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
             Giám sát camera khu vực
           </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Theo dõi camera trong bãi, nhận diện xe đang đỗ và hiển thị cảnh báo cho nhân viên.
-          </p>
         </div>
+
+        {branches.length > 0 && (
+          <div className="max-w-md">
+            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Chi nhánh
+            </label>
+            <select
+              value={activeBranchId || ""}
+              onChange={(e) => setSelectedBranchId(e.target.value)}
+              disabled={Boolean(user?.branch?.id)}
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-70 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+            >
+              {branches.map((branch) => (
+                <option key={branch.id} value={branch.id}>
+                  {branch.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <ComponentCard title="Sự kiện khu vực mới nhất">
           {latestEvents.length === 0 ? (
@@ -144,6 +209,8 @@ export default function ParkingZoneCameras() {
             <ZoneCameraStream
               key={camera.storageKey}
               {...camera}
+              branchId={activeBranchId}
+              locationOptions={locationOptions}
               onEvent={handleEvent}
             />
           ))}

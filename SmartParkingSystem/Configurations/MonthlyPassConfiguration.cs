@@ -10,19 +10,12 @@ namespace SmartParking.Configurations
         {
             builder.HasKey(x => x.Id);
 
-            builder.Property(x => x.LicensePlate)
-                .IsRequired()
-                .HasMaxLength(20);
+            builder.Property(x => x.LicensePlate).IsRequired().HasMaxLength(20);
+            builder.Property(x => x.OwnerName).IsRequired().HasMaxLength(150);
+            builder.Property(x => x.OwnerPhone).HasMaxLength(30);
+            builder.Property(x => x.Amount).HasPrecision(18, 2);
 
-            builder.HasIndex(x => x.LicensePlate)
-                .IsUnique();
-
-            builder.Property(x => x.OwnerName)
-                .IsRequired()
-                .HasMaxLength(150);
-
-            builder.Property(x => x.OwnerPhone)
-                .HasMaxLength(30);
+            builder.HasIndex(x => x.LicensePlate).IsUnique();
         }
     }
 }

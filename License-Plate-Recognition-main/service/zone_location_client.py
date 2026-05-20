@@ -22,6 +22,7 @@ class ZoneLocationAPIClient:
         self.timeout = timeout
         self.session = requests.Session()
         self.api_token = os.environ.get("SMARTPARKING_API_TOKEN", "").strip()
+        self.branch_id = os.environ.get("SMARTPARKING_BRANCH_ID", "").strip()
 
     def send_location_detection(
         self,
@@ -44,6 +45,7 @@ class ZoneLocationAPIClient:
             "columnCode": column_code,
             "locationName": location_name,
             "confidence": round(float(confidence), 4),
+            "branchId": self.branch_id or None,
             "imageBase64": self._array_to_base64(
                 crop_image_array,
                 int(getattr(config, "ZONE_CROP_JPEG_QUALITY", 85)),
@@ -97,6 +99,7 @@ class ZoneLocationAPIClient:
             "locationName": location_name,
             "batchStartedAt": (batch_started_at or datetime.now()).isoformat(),
             "batchEndedAt": (batch_ended_at or datetime.now()).isoformat(),
+            "branchId": self.branch_id or None,
             "detections": detections,
         }
 

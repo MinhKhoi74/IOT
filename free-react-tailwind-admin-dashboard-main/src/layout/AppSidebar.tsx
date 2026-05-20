@@ -37,16 +37,16 @@ const navItems: NavItem[] = [
       { name: "Xe vào", path: "/parking/check-in", pro: false },
       { name: "Xe ra", path: "/parking/check-out", pro: false },
       { name: "Camera khu vực", path: "/parking/zone-cameras", pro: false },
-    ].map((item) => ({ ...item, roles: ["Staff", "Admin"] })),
+    ].map((item) => ({ ...item, roles: ["Staff", "Admin", "Manager"] })),
   },
   {
     name: "Quản trị",
     icon: <UserCircleIcon />,
-    roles: ["Admin"],
+    roles: ["Admin", "Manager"],
     subItems: [
       { name: "Người dùng", path: "/admin/users", pro: false },
       { name: "Nhân viên", path: "/admin/staff", pro: false },
-      { name: "Xe đã đăng ký", path: "/admin/vehicles", pro: false },
+      { name: "Xe đã đăng ký", path: "/admin/vehicles", pro: false, roles: ["Admin"] },
       { name: "Cấu trúc bãi", path: "/admin/parking-structure", pro: false },
       { name: "Vé tháng", path: "/admin/monthly-passes", pro: false, roles: ["Admin"] },
     ],
@@ -113,16 +113,26 @@ const AppSidebar: React.FC = () => {
       onMouseEnter={() => !isExpanded && setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Logo Section */}
       <div className={`py-8 flex ${!isExpanded && !isHovered ? "lg:justify-center" : "justify-start"}`}>
-        <Link to="/">
+        <Link to="/" className="flex items-center gap-3">
           {isExpanded || isHovered || isMobileOpen ? (
-            <>
-              <img className="dark:hidden" src="/images/logo/logo.svg" alt="Logo" width={150} height={40} />
-              <img className="hidden dark:block" src="/images/logo/logo-dark.svg" alt="Logo" width={150} height={40} />
-            </>
+            <div className="flex items-center gap-3">
+              <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-500 text-lg font-black text-white shadow-theme-sm">
+                P
+              </span>
+              <span>
+                <span className="block text-lg font-black leading-5 text-gray-900 dark:text-white">
+                  SmartParking
+                </span>
+                <span className="block text-xs font-semibold text-gray-500 dark:text-gray-400">
+                  Management
+                </span>
+              </span>
+            </div>
           ) : (
-            <img src="/images/logo/logo-icon.svg" alt="Logo" width={32} height={32} />
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-500 text-base font-black text-white">
+              P
+            </span>
           )}
         </Link>
       </div>

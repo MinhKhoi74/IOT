@@ -65,6 +65,11 @@ public class CameraStreamService : ICameraStreamService, IDisposable
             startInfo.Environment["SMARTPARKING_API_TOKEN"] = request.BackendToken;
         }
 
+        if (request.BranchId.HasValue)
+        {
+            startInfo.Environment["SMARTPARKING_BRANCH_ID"] = request.BranchId.Value.ToString();
+        }
+
         var process = new Process
         {
             StartInfo = startInfo,
@@ -221,6 +226,11 @@ public class CameraStreamService : ICameraStreamService, IDisposable
         if (!string.IsNullOrWhiteSpace(request.BackendToken))
         {
             startInfo.Environment["SMARTPARKING_API_TOKEN"] = request.BackendToken;
+        }
+
+        if (request.BranchId.HasValue)
+        {
+            startInfo.Environment["SMARTPARKING_BRANCH_ID"] = request.BranchId.Value.ToString();
         }
 
         var process = new Process
@@ -465,7 +475,8 @@ public class CameraStreamService : ICameraStreamService, IDisposable
                left.CameraPort == right.CameraPort &&
                string.Equals(left.ApiHost, right.ApiHost, StringComparison.OrdinalIgnoreCase) &&
                left.ApiPort == right.ApiPort &&
-               string.Equals(left.StationMode, right.StationMode, StringComparison.OrdinalIgnoreCase);
+               string.Equals(left.StationMode, right.StationMode, StringComparison.OrdinalIgnoreCase) &&
+               left.BranchId == right.BranchId;
     }
 
     private static bool ZoneRequestMatches(ZoneCameraStartRequest left, ZoneCameraStartRequest right)
@@ -478,7 +489,8 @@ public class CameraStreamService : ICameraStreamService, IDisposable
                string.Equals(left.LocationName, right.LocationName, StringComparison.Ordinal) &&
                string.Equals(left.ParkingLotCode ?? string.Empty, right.ParkingLotCode ?? string.Empty, StringComparison.OrdinalIgnoreCase) &&
                string.Equals(left.ZoneCode ?? string.Empty, right.ZoneCode ?? string.Empty, StringComparison.OrdinalIgnoreCase) &&
-               string.Equals(left.ColumnCode ?? string.Empty, right.ColumnCode ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+               string.Equals(left.ColumnCode ?? string.Empty, right.ColumnCode ?? string.Empty, StringComparison.OrdinalIgnoreCase) &&
+               left.BranchId == right.BranchId;
     }
 
     private static string BuildStreamUrl(CameraStartRequest request) =>

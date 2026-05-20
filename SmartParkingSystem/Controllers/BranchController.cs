@@ -31,12 +31,14 @@ namespace SmartParking.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
-            return Ok(await _service.GetAllAsync());
+            var branchId = await ResolveBranchScopeAsync();
+            return Ok(await _service.GetAllAsync(branchId));
         }
 
         [HttpGet("{id}/full")]
         public async Task<IActionResult> GetFull(Guid id)
         {
+            await ResolveBranchScopeAsync(id);
             return Ok(await _service.GetFullAsync(id));
         }
 
@@ -62,6 +64,15 @@ namespace SmartParking.Controllers
             await _service.DeleteAsync(id);
 
             return Ok();
+        }
+
+        private async Task<Guid?> ResolveBranchScopeAsync(Guid? requestedBranchId = null)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrWhiteSpace(userId))
+                throw new UnauthorizedAccessException("User not found");
+
+            return await _branchAuthorizationService.GetBranchScopeAsync(userId, User.IsInRole("Admin"), requestedBranchId);
         }
     }
 }

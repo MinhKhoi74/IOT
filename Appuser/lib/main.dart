@@ -14,12 +14,13 @@ final currencyFormat = NumberFormat.currency(locale: 'vi_VN', symbol: 'VND');
 final dateFormat = DateFormat('dd/MM/yyyy HH:mm');
 final shortDateFormat = DateFormat('dd/MM/yyyy');
 
-const appBg = Color(0xFFF4F7F5);
-const ink = Color(0xFF12211D);
-const pine = Color(0xFF0F5F4F);
-const mint = Color(0xFFE6F3ED);
-const amber = Color(0xFFE7A72F);
-const softLine = Color(0xFFDCE7E1);
+const appBg = Color(0xFFF9FAFB);
+const ink = Color(0xFF101828);
+const pine = Color(0xFF465FFF);
+const mint = Color(0xFFECF3FF);
+const amber = Color(0xFFF79009);
+const softLine = Color(0xFFE4E7EC);
+const mutedInk = Color(0xFF667085);
 
 class SmartParkingUserApp extends StatefulWidget {
   const SmartParkingUserApp({super.key});
@@ -60,16 +61,20 @@ class _SmartParkingUserAppState extends State<SmartParkingUserApp> {
       theme: ThemeData(
         colorScheme: scheme,
         scaffoldBackgroundColor: appBg,
+        fontFamily: 'Roboto',
         useMaterial3: true,
         appBarTheme: const AppBarTheme(
           centerTitle: false,
-          backgroundColor: appBg,
+          backgroundColor: Colors.white,
           foregroundColor: ink,
           elevation: 0,
+          surfaceTintColor: Colors.white,
+          scrolledUnderElevation: 1,
+          shadowColor: Color(0x14101828),
           titleTextStyle: TextStyle(
             color: ink,
             fontSize: 20,
-            fontWeight: FontWeight.w800,
+            fontWeight: FontWeight.w900,
           ),
         ),
         cardTheme: CardThemeData(
@@ -86,6 +91,8 @@ class _SmartParkingUserAppState extends State<SmartParkingUserApp> {
             backgroundColor: pine,
             foregroundColor: Colors.white,
             minimumSize: const Size.fromHeight(48),
+            elevation: 0,
+            shadowColor: Colors.transparent,
             shape:
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           ),
@@ -94,9 +101,37 @@ class _SmartParkingUserAppState extends State<SmartParkingUserApp> {
           style: OutlinedButton.styleFrom(
             foregroundColor: pine,
             minimumSize: const Size.fromHeight(48),
-            side: const BorderSide(color: pine),
+            backgroundColor: Colors.white,
+            side: const BorderSide(color: softLine, width: 1.2),
             shape:
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+        ),
+        textButtonTheme: TextButtonThemeData(
+          style: TextButton.styleFrom(
+            foregroundColor: pine,
+            textStyle: const TextStyle(fontWeight: FontWeight.w800),
+          ),
+        ),
+        iconButtonTheme: IconButtonThemeData(
+          style: IconButton.styleFrom(
+            foregroundColor: pine,
+            backgroundColor: mint,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+        ),
+        segmentedButtonTheme: SegmentedButtonThemeData(
+          style: ButtonStyle(
+            backgroundColor: WidgetStateProperty.resolveWith((states) {
+              if (states.contains(WidgetState.selected)) return pine;
+              return Colors.white;
+            }),
+            foregroundColor: WidgetStateProperty.resolveWith((states) {
+              if (states.contains(WidgetState.selected)) return Colors.white;
+              return pine;
+            }),
+            side: const WidgetStatePropertyAll(BorderSide(color: softLine)),
           ),
         ),
         inputDecorationTheme: InputDecorationTheme(
@@ -115,6 +150,9 @@ class _SmartParkingUserAppState extends State<SmartParkingUserApp> {
         navigationBarTheme: const NavigationBarThemeData(
           backgroundColor: Colors.white,
           indicatorColor: mint,
+          surfaceTintColor: Colors.white,
+          elevation: 8,
+          shadowColor: Color(0x14101828),
           labelTextStyle: WidgetStatePropertyAll(
             TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
           ),
@@ -194,7 +232,7 @@ class _AuthPageState extends State<AuthPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Icon(Icons.local_parking, size: 58, color: pine),
+                    const Center(child: SmartParkingMark(size: 58)),
                     const SizedBox(height: 12),
                     Text(
                       isRegister
@@ -314,7 +352,29 @@ class _HomeShellState extends State<HomeShell> {
       VehicleLocationsPage(api: widget.api),
     ];
     return Scaffold(
-      appBar: AppBar(title: const Text('SmartParking')),
+      appBar: AppBar(
+        titleSpacing: 16,
+        title: const Row(
+          children: [
+            SmartParkingMark(size: 34),
+            SizedBox(width: 10),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('SmartParking'),
+                Text(
+                  'Ung dung khach hang',
+                  style: TextStyle(
+                    color: mutedInk,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
       body: pages[index],
       bottomNavigationBar: NavigationBar(
         selectedIndex: index,
@@ -639,6 +699,7 @@ class VehicleLocationsPage extends StatefulWidget {
 
 class _VehicleLocationsPageState extends State<VehicleLocationsPage> {
   List<VehicleLocationInfo> locations = [];
+  final mapsByBranch = <String, ParkingMapInfo>{};
   var loading = true;
 
   @override
@@ -650,6 +711,15 @@ class _VehicleLocationsPageState extends State<VehicleLocationsPage> {
   Future<void> load() async {
     try {
       locations = await widget.api.getVehicleLocations();
+      mapsByBranch.clear();
+      final branchIds = locations
+          .map((item) => item.branchId)
+          .whereType<String>()
+          .where((id) => id.isNotEmpty)
+          .toSet();
+      for (final branchId in branchIds) {
+        mapsByBranch[branchId] = await widget.api.getParkingMap(branchId);
+      }
     } catch (error) {
       if (!mounted) return;
       showMessage(context, error.toString());
@@ -676,7 +746,12 @@ class _VehicleLocationsPageState extends State<VehicleLocationsPage> {
               child: EmptyText('Chưa có vị trí xe mới nhất.'),
             )
           else
-            for (final item in locations) VehicleLocationTile(item: item),
+            for (final item in locations)
+              VehicleLocationTile(
+                item: item,
+                parkingMap:
+                    item.branchId == null ? null : mapsByBranch[item.branchId!],
+              ),
         ],
       ),
     );
@@ -702,6 +777,7 @@ class _VehiclesPageState extends State<VehiclesPage> {
   var vehicleType = 'Motorbike';
   var defaultVehicle = true;
   var monthCount = 1;
+  var monthlyAmount = 200000.0;
   AppUser? user;
   List<VehicleInfo> vehicles = [];
   VehicleInfo? selectedVehicle;
@@ -718,9 +794,10 @@ class _VehiclesPageState extends State<VehiclesPage> {
   Future<void> load() async {
     try {
       final results = await Future.wait(
-          [widget.api.getProfile(), widget.api.getVehicles()]);
+          [widget.api.getProfile(), widget.api.getVehicles(), widget.api.getMonthlyPassPrice()]);
       user = results[0] as AppUser;
       vehicles = results[1] as List<VehicleInfo>;
+      monthlyAmount = results[2] as double;
       selectedVehicle = vehicles.where((item) => item.isDefault).firstOrNull ??
           (vehicles.isNotEmpty ? vehicles.first : null);
       fillMonthlyPassFields();
@@ -1021,7 +1098,31 @@ class _VehiclesPageState extends State<VehiclesPage> {
   }
 }
 
-const monthlyAmount = 200000.0;
+class SmartParkingMark extends StatelessWidget {
+  const SmartParkingMark({this.size = 40, super.key});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: pine,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x1A465FFF),
+            blurRadius: 12,
+            offset: Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Icon(Icons.local_parking, color: Colors.white, size: size * .62),
+    );
+  }
+}
 
 class AppCard extends StatelessWidget {
   const AppCard(
@@ -1032,7 +1133,10 @@ class AppCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(child: Padding(padding: padding, child: child));
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: Padding(padding: padding, child: child),
+    );
   }
 }
 
@@ -1060,7 +1164,7 @@ class SectionHeader extends StatelessWidget {
                 style: Theme.of(context)
                     .textTheme
                     .bodyMedium
-                    ?.copyWith(color: Colors.black54)),
+                    ?.copyWith(color: mutedInk)),
           ],
         ],
       ),
@@ -1080,7 +1184,8 @@ class StatusPill extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: color.withValues(alpha: .10),
-        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: .18)),
+        borderRadius: BorderRadius.circular(999),
       ),
       child: Text(label,
           style: TextStyle(
@@ -1109,7 +1214,15 @@ class MetricTile extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, color: pine),
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: mint,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(icon, color: pine),
+            ),
             const SizedBox(height: 10),
             Text(value,
                 maxLines: 1,
@@ -1216,9 +1329,10 @@ class ParkingHistoryTile extends StatelessWidget {
 }
 
 class VehicleLocationTile extends StatelessWidget {
-  const VehicleLocationTile({required this.item, super.key});
+  const VehicleLocationTile({required this.item, this.parkingMap, super.key});
 
   final VehicleLocationInfo item;
+  final ParkingMapInfo? parkingMap;
 
   @override
   Widget build(BuildContext context) {
@@ -1257,17 +1371,23 @@ class VehicleLocationTile extends StatelessWidget {
             ReadOnlyLine(label: 'Camera', value: item.cameraId),
             ReadOnlyLine(
                 label: 'Thời gian', value: dateFormat.format(item.detectedAt)),
-            if (item.zoneCode?.isNotEmpty == true ||
+            if (item.branchName?.isNotEmpty == true ||
+                item.zoneCode?.isNotEmpty == true ||
                 item.columnCode?.isNotEmpty == true)
               ReadOnlyLine(
                 label: 'Khu vuc',
                 value: [
+                  if (item.branchName?.isNotEmpty == true) item.branchName!,
                   if (item.parkingLotCode?.isNotEmpty == true)
                     item.parkingLotCode!,
                   if (item.zoneCode?.isNotEmpty == true) item.zoneCode!,
                   if (item.columnCode?.isNotEmpty == true) item.columnCode!,
                 ].join(' - '),
               ),
+            if (parkingMap != null && parkingMap!.elements.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              ParkingMapPreview(map: parkingMap!, location: item),
+            ],
             if (imageBytes != null) ...[
               const SizedBox(height: 10),
               ClipRRect(
@@ -1285,6 +1405,353 @@ class VehicleLocationTile extends StatelessWidget {
       ),
     );
   }
+}
+
+class ParkingMapPreview extends StatefulWidget {
+  const ParkingMapPreview(
+      {required this.map, required this.location, super.key});
+
+  final ParkingMapInfo map;
+  final VehicleLocationInfo location;
+
+  @override
+  State<ParkingMapPreview> createState() => _ParkingMapPreviewState();
+}
+
+class _ParkingMapPreviewState extends State<ParkingMapPreview> {
+  String? startElementId;
+
+  int get _columns {
+    final raw = widget.map.width > 100 ? 40 : widget.map.width.round();
+    return raw.clamp(1, 200).toInt();
+  }
+
+  int get _rows {
+    final raw = widget.map.height > 100 ? 24 : widget.map.height.round();
+    return raw.clamp(1, 200).toInt();
+  }
+
+  List<ParkingMapElementInfo> get _elements {
+    if (widget.map.width <= 100 && widget.map.height <= 100) {
+      return widget.map.elements;
+    }
+    final columns = _columns;
+    final rows = _rows;
+    return widget.map.elements
+        .map((item) => ParkingMapElementInfo(
+              id: item.id,
+              type: item.type,
+              label: item.label,
+              sourceId: item.sourceId,
+              sourceType: item.sourceType,
+              parentId: item.parentId,
+              x: (item.x / widget.map.width * columns).roundToDouble(),
+              y: (item.y / widget.map.height * rows).roundToDouble(),
+              width: (item.width / widget.map.width * columns)
+                  .round()
+                  .clamp(1, columns)
+                  .toDouble(),
+              height: (item.height / widget.map.height * rows)
+                  .round()
+                  .clamp(1, rows)
+                  .toDouble(),
+              color: item.color,
+            ))
+        .toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final elements = _elements;
+    final columns = _columns;
+    final rows = _rows;
+    final destination = _findMatchedElement(elements);
+    final preferredStarts = elements
+        .where((item) =>
+            item.type == 'exit' ||
+            item.type == 'elevator' ||
+            item.type == 'barrier')
+        .toList();
+    final startOptions = [
+      ...preferredStarts,
+      ...elements.where((item) =>
+          item.type != 'wall' &&
+          !preferredStarts.any((preferred) => preferred.id == item.id)),
+    ];
+    if (startOptions.isNotEmpty &&
+        !startOptions.any((item) => item.id == startElementId)) {
+      startElementId = startOptions.first.id;
+    }
+    final start =
+        elements.where((item) => item.id == startElementId).firstOrNull;
+    final path = start != null && destination != null
+        ? _findPath(elements, start, destination)
+        : <_GridPoint>[];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (startOptions.isNotEmpty) ...[
+          DropdownButtonFormField<String>(
+            initialValue: startElementId,
+            decoration: const InputDecoration(labelText: 'Vị trí của bạn'),
+            items: startOptions
+                .map((item) =>
+                    DropdownMenuItem(value: item.id, child: Text(item.label)))
+                .toList(),
+            onChanged: (value) => setState(() => startElementId = value),
+          ),
+          const SizedBox(height: 10),
+        ],
+        AspectRatio(
+          aspectRatio: columns / rows,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border.all(color: softLine),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return Stack(
+                  children: [
+                    CustomPaint(
+                      size: Size(constraints.maxWidth, constraints.maxHeight),
+                      painter: _GridAndPathPainter(
+                        columns: columns,
+                        rows: rows,
+                        path: path,
+                      ),
+                    ),
+                    for (final element in elements)
+                      Positioned(
+                        left: element.x / columns * constraints.maxWidth,
+                        top: element.y / rows * constraints.maxHeight,
+                        width: element.width / columns * constraints.maxWidth,
+                        height: element.height / rows * constraints.maxHeight,
+                        child: Container(
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: _parseColor(element.color).withValues(
+                                alpha: element.id == destination?.id
+                                    ? 0.95
+                                    : 0.75),
+                            borderRadius: BorderRadius.circular(
+                                element.type == 'wall' ? 1 : 6),
+                            border: Border.all(
+                              color: element.id == destination?.id
+                                  ? amber
+                                  : Colors.white,
+                              width: element.id == destination?.id ? 3 : 1,
+                            ),
+                          ),
+                          child: Text(
+                            element.type == 'wall' ? '' : element.label,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ),
+                    if (destination != null)
+                      Positioned(
+                        right: 8,
+                        top: 8,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                              color: amber,
+                              borderRadius: BorderRadius.circular(999)),
+                          child: const Text('Vị trí xe của bạn',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.w800, fontSize: 11)),
+                        ),
+                      ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ),
+        if (path.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text('Đường đi ngắn nhất: ${path.length} ô',
+                style:
+                    const TextStyle(fontWeight: FontWeight.w700, color: pine)),
+          ),
+      ],
+    );
+  }
+
+  ParkingMapElementInfo? _findMatchedElement(
+      List<ParkingMapElementInfo> elements) {
+    final column = widget.location.columnCode?.trim().toLowerCase();
+    final zone = widget.location.zoneCode?.trim().toLowerCase();
+    final lot = widget.location.parkingLotCode?.trim().toLowerCase();
+    for (final element in elements) {
+      final label = element.label.trim().toLowerCase();
+      final sourceId = element.sourceId?.trim().toLowerCase();
+      if (column != null &&
+          column.isNotEmpty &&
+          (label == column || sourceId == column)) {
+        return element;
+      }
+    }
+    for (final element in elements) {
+      final label = element.label.trim().toLowerCase();
+      if (zone != null && zone.isNotEmpty && label.contains(zone)) {
+        return element;
+      }
+      if (lot != null && lot.isNotEmpty && label.contains(lot)) return element;
+    }
+    return null;
+  }
+
+  List<_GridPoint> _findPath(
+    List<ParkingMapElementInfo> elements,
+    ParkingMapElementInfo startElement,
+    ParkingMapElementInfo endElement,
+  ) {
+    final columns = _columns;
+    final rows = _rows;
+    final blocked = <String>{};
+    for (final element in elements) {
+      if (element.id == startElement.id || element.id == endElement.id) {
+        continue;
+      }
+      if (element.type == 'parkingLot' ||
+          element.type == 'zone' ||
+          element.type == 'exit' ||
+          element.type == 'elevator') {
+        continue;
+      }
+      for (var x = element.x.floor();
+          x < (element.x + element.width).ceil();
+          x++) {
+        for (var y = element.y.floor();
+            y < (element.y + element.height).ceil();
+            y++) {
+          if (x >= 0 && y >= 0 && x < columns && y < rows) blocked.add('$x,$y');
+        }
+      }
+    }
+
+    final start = _centerOf(startElement, columns, rows);
+    final goal = _centerOf(endElement, columns, rows);
+    final open = <_GridPoint>[start];
+    final cameFrom = <String, _GridPoint>{};
+    final gScore = <String, int>{start.key: 0};
+    final closed = <String>{};
+
+    while (open.isNotEmpty) {
+      open.sort((a, b) => ((gScore[a.key] ?? 1 << 30) + a.distance(goal))
+          .compareTo((gScore[b.key] ?? 1 << 30) + b.distance(goal)));
+      final current = open.removeAt(0);
+      if (current.key == goal.key) return _reconstruct(cameFrom, current);
+      closed.add(current.key);
+      for (final next in current.neighbors(columns, rows)) {
+        if (blocked.contains(next.key) || closed.contains(next.key)) continue;
+        final tentative = (gScore[current.key] ?? 1 << 30) + 1;
+        if (tentative < (gScore[next.key] ?? 1 << 30)) {
+          cameFrom[next.key] = current;
+          gScore[next.key] = tentative;
+          if (!open.any((item) => item.key == next.key)) open.add(next);
+        }
+      }
+    }
+    return [];
+  }
+
+  _GridPoint _centerOf(ParkingMapElementInfo element, int columns, int rows) =>
+      _GridPoint(
+        (element.x + element.width / 2).floor().clamp(0, columns - 1),
+        (element.y + element.height / 2).floor().clamp(0, rows - 1),
+      );
+
+  List<_GridPoint> _reconstruct(
+      Map<String, _GridPoint> cameFrom, _GridPoint current) {
+    final path = <_GridPoint>[current];
+    while (cameFrom.containsKey(current.key)) {
+      current = cameFrom[current.key]!;
+      path.add(current);
+    }
+    return path.reversed.toList();
+  }
+
+  Color _parseColor(String value) {
+    final hex = value.replaceAll('#', '');
+    final parsed = int.tryParse(hex.length == 6 ? 'ff$hex' : hex, radix: 16);
+    return Color(parsed ?? 0xff2563eb);
+  }
+}
+
+class _GridPoint {
+  const _GridPoint(this.x, this.y);
+  final int x;
+  final int y;
+  String get key => '$x,$y';
+  int distance(_GridPoint other) => (x - other.x).abs() + (y - other.y).abs();
+  List<_GridPoint> neighbors(int columns, int rows) => [
+        _GridPoint(x + 1, y),
+        _GridPoint(x - 1, y),
+        _GridPoint(x, y + 1),
+        _GridPoint(x, y - 1),
+      ]
+          .where((item) =>
+              item.x >= 0 && item.y >= 0 && item.x < columns && item.y < rows)
+          .toList();
+}
+
+class _GridAndPathPainter extends CustomPainter {
+  const _GridAndPathPainter(
+      {required this.columns, required this.rows, required this.path});
+  final int columns;
+  final int rows;
+  final List<_GridPoint> path;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final gridPaint = Paint()
+      ..color = softLine.withValues(alpha: .45)
+      ..strokeWidth = 1;
+    for (var x = 1; x < columns; x++) {
+      final dx = x / columns * size.width;
+      canvas.drawLine(Offset(dx, 0), Offset(dx, size.height), gridPaint);
+    }
+    for (var y = 1; y < rows; y++) {
+      final dy = y / rows * size.height;
+      canvas.drawLine(Offset(0, dy), Offset(size.width, dy), gridPaint);
+    }
+    if (path.length < 2) return;
+    final pathPaint = Paint()
+      ..color = pine
+      ..strokeWidth = 4
+      ..style = PaintingStyle.stroke;
+    final line = Path();
+    for (var i = 0; i < path.length; i++) {
+      final p = Offset((path[i].x + .5) / columns * size.width,
+          (path[i].y + .5) / rows * size.height);
+      if (i == 0) {
+        line.moveTo(p.dx, p.dy);
+      } else {
+        line.lineTo(p.dx, p.dy);
+      }
+    }
+    canvas.drawPath(line, pathPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _GridAndPathPainter oldDelegate) =>
+      oldDelegate.path != path ||
+      oldDelegate.columns != columns ||
+      oldDelegate.rows != rows;
 }
 
 class VehicleTile extends StatelessWidget {

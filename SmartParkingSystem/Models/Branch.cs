@@ -10,6 +10,9 @@ namespace SmartParking.Models
 
         public string Address { get; set; }
         public string? ManagerId { get; set; }
+        public int MaxVehicleCapacity { get; set; } = 100;
+        public string? ParkingMapJson { get; set; }
+        public DateTime? ParkingMapUpdatedAt { get; set; }
 
         public ApplicationUser? Manager { get; set; }
 

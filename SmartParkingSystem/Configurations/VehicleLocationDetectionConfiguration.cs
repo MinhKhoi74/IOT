@@ -52,6 +52,9 @@ namespace SmartParking.Configurations
             builder.HasIndex(x => x.Status)
                 .HasDatabaseName("IX_VehicleLocation_Status");
 
+            builder.HasIndex(x => x.BranchId)
+                .HasDatabaseName("IX_VehicleLocation_BranchId");
+
             builder.HasOne(x => x.Vehicle)
                 .WithMany()
                 .HasForeignKey(x => x.VehicleId)
@@ -65,6 +68,11 @@ namespace SmartParking.Configurations
             builder.HasOne(x => x.CheckInOut)
                 .WithMany()
                 .HasForeignKey(x => x.CheckInOutId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            builder.HasOne(x => x.Branch)
+                .WithMany()
+                .HasForeignKey(x => x.BranchId)
                 .OnDelete(DeleteBehavior.NoAction);
         }
     }

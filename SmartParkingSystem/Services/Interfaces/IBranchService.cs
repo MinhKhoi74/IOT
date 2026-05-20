@@ -7,7 +7,7 @@ namespace SmartParking.Services.Interfaces
     {
         Task CreateAsync(BranchCreateDto dto);
 
-        Task<IEnumerable<BranchDto>> GetAllAsync();
+        Task<IEnumerable<BranchDto>> GetAllAsync(Guid? branchId = null);
 
         Task UpdateAsync(Guid id, BranchDto dto);
 

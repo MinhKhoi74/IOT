@@ -168,10 +168,21 @@ namespace SmartParking.Migrations
                     b.Property<string>("ManagerId")
                         .HasColumnType("nvarchar(450)");
 
+                    b.Property<int>("MaxVehicleCapacity")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(100);
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ParkingMapJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("ParkingMapUpdatedAt")
+                        .HasColumnType("datetime2");
 
                     b.HasKey("Id");
 
@@ -187,6 +198,9 @@ namespace SmartParking.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<Guid?>("BranchId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("CheckInImageBase64")
                         .IsRequired()
@@ -279,6 +293,9 @@ namespace SmartParking.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("BranchId")
+                        .HasDatabaseName("IX_CheckInOut_BranchId");
 
                     b.HasIndex("CheckInTime")
                         .HasDatabaseName("IX_CheckInTime");
@@ -496,6 +513,10 @@ namespace SmartParking.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
@@ -576,6 +597,27 @@ namespace SmartParking.Migrations
                     b.ToTable("Slots");
                 });
 
+            modelBuilder.Entity("SmartParking.Models.SystemSetting", b =>
+                {
+                    b.Property<string>("Key")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETDATE()");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.HasKey("Key");
+
+                    b.ToTable("SystemSettings");
+                });
+
             modelBuilder.Entity("SmartParking.Models.Vehicle", b =>
                 {
                     b.Property<Guid>("Id")
@@ -627,6 +669,9 @@ namespace SmartParking.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<Guid?>("BranchId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("CameraId")
                         .IsRequired()
@@ -698,6 +743,9 @@ namespace SmartParking.Migrations
                         .HasColumnType("nvarchar(100)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("BranchId")
+                        .HasDatabaseName("IX_VehicleLocation_BranchId");
 
                     b.HasIndex("CheckInOutId");
 
@@ -885,6 +933,11 @@ namespace SmartParking.Migrations
 
             modelBuilder.Entity("SmartParking.Models.CheckInOut", b =>
                 {
+                    b.HasOne("SmartParking.Models.Branch", "Branch")
+                        .WithMany()
+                        .HasForeignKey("BranchId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
                     b.HasOne("SmartParking.Models.Identity.ApplicationUser", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
@@ -899,6 +952,8 @@ namespace SmartParking.Migrations
                         .WithMany("ParkingSessions")
                         .HasForeignKey("WalletTransactionId")
                         .OnDelete(DeleteBehavior.NoAction);
+
+                    b.Navigation("Branch");
 
                     b.Navigation("User");
 
@@ -974,6 +1029,11 @@ namespace SmartParking.Migrations
 
             modelBuilder.Entity("SmartParking.Models.VehicleLocationDetection", b =>
                 {
+                    b.HasOne("SmartParking.Models.Branch", "Branch")
+                        .WithMany()
+                        .HasForeignKey("BranchId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
                     b.HasOne("SmartParking.Models.CheckInOut", "CheckInOut")
                         .WithMany()
                         .HasForeignKey("CheckInOutId")
@@ -988,6 +1048,8 @@ namespace SmartParking.Migrations
                         .WithMany()
                         .HasForeignKey("VehicleId")
                         .OnDelete(DeleteBehavior.NoAction);
+
+                    b.Navigation("Branch");
 
                     b.Navigation("CheckInOut");
 

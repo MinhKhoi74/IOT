@@ -53,6 +53,7 @@ namespace SmartParking.Services
                     ParkingLotCode = request.ParkingLotCode,
                     ZoneCode = request.ZoneCode,
                     ColumnCode = request.ColumnCode,
+                    BranchId = request.BranchId,
                     LocationName = request.LocationName,
                     Confidence = item.Confidence,
                     ImageBase64 = item.ImageBase64,
@@ -79,6 +80,7 @@ namespace SmartParking.Services
             var activeInRedis = await _redis.IsPlateActiveAsync(plate);
             var activeSessions = await _context.CheckInOuts
                 .Where(x => x.Status == "Active")
+                .Where(x => !request.BranchId.HasValue || x.BranchId == request.BranchId.Value)
                 .OrderByDescending(x => x.CheckInTime)
                 .ToListAsync();
             var activeSession = activeSessions.FirstOrDefault(x => NormalizePlate(x.LicensePlate) == plate)
@@ -117,6 +119,7 @@ namespace SmartParking.Services
                 VehicleId = vehicle?.Id,
                 UserId = activeSession?.UserId ?? vehicle?.UserId,
                 CheckInOutId = activeSession?.Id,
+                BranchId = request.BranchId ?? activeSession?.BranchId,
                 CameraId = request.CameraId.Trim(),
                 ParkingLotCode = TrimOrNull(request.ParkingLotCode),
                 ZoneCode = TrimOrNull(request.ZoneCode),
@@ -133,7 +136,7 @@ namespace SmartParking.Services
             };
 
             await using var transaction = await _context.Database.BeginTransactionAsync();
-            await DeleteExistingLocationsAsync(canonicalPlate);
+            await DeleteExistingLocationsAsync(canonicalPlate, detection.BranchId);
             _context.VehicleLocationDetections.Add(detection);
             await _context.SaveChangesAsync();
             await transaction.CommitAsync();
@@ -169,6 +172,7 @@ namespace SmartParking.Services
         {
             return await _context.VehicleLocationDetections
                 .AsNoTracking()
+                .Include(x => x.Branch)
                 .Where(x => x.UserId == userId && x.IsLatest
                     && (x.Status == "KnownCheckedIn" || x.Status == "RegisteredUserVehicle"))
                 .OrderByDescending(x => x.DetectedAt)
@@ -176,22 +180,28 @@ namespace SmartParking.Services
                 .ToListAsync();
         }
 
-        public async Task<List<VehicleLocationDto>> GetRecentAlertsAsync(int take = 50)
+        public async Task<List<VehicleLocationDto>> GetRecentAlertsAsync(int take = 50, Guid? branchId = null)
         {
             take = Math.Clamp(take, 1, 200);
-            return await _context.VehicleLocationDetections
+            var query = _context.VehicleLocationDetections
                 .AsNoTracking()
+                .Include(x => x.Branch)
+                .Where(x => !branchId.HasValue || x.BranchId == branchId.Value);
+
+            return await query
                 .OrderByDescending(x => x.DetectedAt)
                 .Take(take)
                 .Select(x => ToDto(x))
                 .ToListAsync();
         }
 
-        public async Task<VehicleLocationDto?> GetLocationAlertAsync(int id)
+        public async Task<VehicleLocationDto?> GetLocationAlertAsync(int id, Guid? branchId = null)
         {
             return await _context.VehicleLocationDetections
                 .AsNoTracking()
+                .Include(x => x.Branch)
                 .Where(x => x.Id == id)
+                .Where(x => !branchId.HasValue || x.BranchId == branchId.Value)
                 .Select(x => ToDto(x))
                 .FirstOrDefaultAsync();
         }
@@ -211,10 +221,11 @@ namespace SmartParking.Services
                     && x.ValidTo >= atTime);
         }
 
-        private async Task DeleteExistingLocationsAsync(string plate)
+        private async Task DeleteExistingLocationsAsync(string plate, Guid? branchId)
         {
             await _context.VehicleLocationDetections
                 .Where(x => x.LicensePlate == plate)
+                .Where(x => !branchId.HasValue || x.BranchId == branchId.Value)
                 .ExecuteDeleteAsync();
         }
 
@@ -245,7 +256,13 @@ namespace SmartParking.Services
                 timestamp = DateTime.UtcNow
             };
 
-            await _parkingHub.Clients.All.SendAsync("VehicleLocationAlert", alert);
+            await _parkingHub.Clients.Group(ParkingHub.AdminGroup)
+                .SendAsync("VehicleLocationAlert", alert);
+            if (dto.BranchId.HasValue)
+            {
+                await _parkingHub.Clients.Group(ParkingHub.BranchGroup(dto.BranchId.Value))
+                    .SendAsync("VehicleLocationAlert", alert);
+            }
         }
 
         private static VehicleLocationDto ToDto(VehicleLocationDetection x)
@@ -258,6 +275,8 @@ namespace SmartParking.Services
                 UserId = x.UserId,
                 OwnerName = x.User != null ? x.User.FullName : null,
                 CheckInOutId = x.CheckInOutId,
+                BranchId = x.BranchId,
+                BranchName = x.Branch != null ? x.Branch.Name : null,
                 CameraId = x.CameraId,
                 ParkingLotCode = x.ParkingLotCode,
                 ZoneCode = x.ZoneCode,

@@ -18,5 +18,7 @@ namespace SmartParking.DTOs.Parking
         public string CheckOutImageBase64 { get; set; } = string.Empty;
         public Guid? VehicleId { get; set; }
         public string? UserId { get; set; }
+        public Guid? BranchId { get; set; }
+        public string? BranchName { get; set; }
     }
 }

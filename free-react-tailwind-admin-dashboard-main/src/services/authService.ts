@@ -25,12 +25,23 @@ export interface AuthResponse {
     role?: string;
     roles?: string[];
     Roles?: string[];
+    branch?: {
+      id: string;
+      name: string;
+      address?: string;
+    } | null;
+    Branch?: {
+      id: string;
+      name: string;
+      address?: string;
+    } | null;
   };
 }
 
 const normalizeAuthResponse = (response: AuthResponse): AuthResponse => {
   const roles = response.user.roles || response.user.Roles || (response.user.role ? [response.user.role] : []);
   const primaryRole = roles[0] || response.user.role || "";
+  const branch = response.user.branch || response.user.Branch || null;
 
   return {
     ...response,
@@ -38,6 +49,7 @@ const normalizeAuthResponse = (response: AuthResponse): AuthResponse => {
       ...response.user,
       role: primaryRole,
       roles,
+      branch,
     },
   };
 };

@@ -147,9 +147,28 @@ namespace SmartParking.Services
             await _userManager.UpdateAsync(user);
         }
 
-        public async Task<List<UserListDto>> GetAllUsersAsync()
+        public async Task<List<UserListDto>> GetAllUsersAsync(string requesterId)
         {
-            var users = await _userManager.Users.ToListAsync();
+            var requester = await _userManager.FindByIdAsync(requesterId);
+            if (requester == null)
+                throw new Exception("User not found");
+
+            var requesterRoles = await _userManager.GetRolesAsync(requester);
+            var isAdmin = requesterRoles.Contains("Admin");
+            var isManager = requesterRoles.Contains("Manager");
+            if (!isAdmin && !isManager)
+                throw new Exception("You don't have permission to view users");
+
+            if (isManager && !requester.BranchId.HasValue)
+                throw new Exception("Manager has no assigned branch");
+
+            var query = _userManager.Users.AsQueryable();
+            if (isManager)
+            {
+                query = query.Where(x => x.BranchId == requester.BranchId);
+            }
+
+            var users = await query.ToListAsync();
             var result = new List<UserListDto>();
 
             foreach (var user in users)
@@ -188,7 +207,16 @@ namespace SmartParking.Services
                 throw new Exception("User not found");
 
             var roles = await _userManager.GetRolesAsync(user);
-            var currentUserRoles = await _userManager.GetRolesAsync(await _userManager.FindByIdAsync(currentUserId));
+            var currentUser = await _userManager.FindByIdAsync(currentUserId);
+            if (currentUser == null)
+                throw new Exception("User not found");
+
+            var currentUserRoles = await _userManager.GetRolesAsync(currentUser);
+            if (currentUserRoles.Contains("Manager") && !currentUserRoles.Contains("Admin"))
+            {
+                if (!currentUser.BranchId.HasValue || user.BranchId != currentUser.BranchId)
+                    throw new Exception("You can only view users in your own branch");
+            }
 
             // Nếu là Customer và không phải chính họ, không được xem
             if (roles.Contains("Customer") && userId != currentUserId && !currentUserRoles.Contains("Admin"))
@@ -224,11 +252,27 @@ namespace SmartParking.Services
             return detail;
         }
 
-        public async Task<string> CreateCustomerAsync(CreateCustomerDto dto)
+        public async Task<string> CreateCustomerAsync(CreateCustomerDto dto, string? requesterId = null)
         {
             var existingUser = await _userManager.FindByEmailAsync(dto.Email);
             if (existingUser != null)
                 throw new Exception("Email already exists");
+
+            if (!string.IsNullOrWhiteSpace(requesterId))
+            {
+                var requester = await _userManager.FindByIdAsync(requesterId);
+                if (requester == null)
+                    throw new Exception("User not found");
+
+                var requesterRoles = await _userManager.GetRolesAsync(requester);
+                if (requesterRoles.Contains("Manager") && !requesterRoles.Contains("Admin"))
+                {
+                    if (!requester.BranchId.HasValue)
+                        throw new Exception("Manager has no assigned branch");
+
+                    dto.BranchId = requester.BranchId;
+                }
+            }
 
             var user = new ApplicationUser
             {
@@ -236,6 +280,7 @@ namespace SmartParking.Services
                 Email = dto.Email,
                 FullName = dto.FullName,
                 PhoneNumber = dto.PhoneNumber,
+                BranchId = dto.BranchId,
                 IsActive = true
             };
 
@@ -321,11 +366,34 @@ namespace SmartParking.Services
             return user.Id;
         }
 
-        public async Task DeleteUserAsync(string userId)
+        public async Task DeleteUserAsync(string userId, string? requesterId = null)
         {
             var user = await _userManager.FindByIdAsync(userId);
             if (user == null)
                 throw new Exception("User not found");
+
+            if (!string.IsNullOrWhiteSpace(requesterId))
+            {
+                var requester = await _userManager.FindByIdAsync(requesterId);
+                if (requester == null)
+                    throw new Exception("User not found");
+
+                var requesterRoles = await _userManager.GetRolesAsync(requester);
+                var isAdmin = requesterRoles.Contains("Admin");
+                var isManager = requesterRoles.Contains("Manager");
+                if (!isAdmin && !isManager)
+                    throw new Exception("You don't have permission to delete users");
+
+                if (isManager && !isAdmin)
+                {
+                    if (!requester.BranchId.HasValue || user.BranchId != requester.BranchId)
+                        throw new Exception("You can only delete users in your own branch");
+
+                    var targetRoles = await _userManager.GetRolesAsync(user);
+                    if (targetRoles.Contains("Admin") || targetRoles.Contains("Manager"))
+                        throw new Exception("Manager cannot delete admin or manager accounts");
+                }
+            }
 
             // Nếu user là Manager của branch, xóa ManagerId (branch không bị xóa)
             var managerBranches = await _context.Branches

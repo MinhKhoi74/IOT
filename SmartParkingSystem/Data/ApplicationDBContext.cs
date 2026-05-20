@@ -28,6 +28,7 @@ namespace SmartParking.Data
         public DbSet<MonthlyPass> MonthlyPasses { get; set; }
         public DbSet<Wallet> Wallets { get; set; }
         public DbSet<WalletTransaction> WalletTransactions { get; set; }
+        public DbSet<SystemSetting> SystemSettings { get; set; }
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);

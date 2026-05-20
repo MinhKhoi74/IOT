@@ -10,10 +10,18 @@ import {
   parkingService,
   CheckInOutResult,
 } from "../../services/parkingService";
+import { useAuth } from "../../context/AuthContext";
+import {
+  Branch,
+  parkingStructureService,
+} from "../../services/parkingStructureService";
 
 export default function ParkingCheckOut() {
+  const { user } = useAuth();
   const [plateNumber, setPlateNumber] = useState("");
   const [stationId, setStationId] = useState("STATION-EXIT-01");
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [selectedBranchId, setSelectedBranchId] = useState(user?.branch?.id || "");
   const [confidence, setConfidence] = useState(0);
   const [checkoutEvent, setCheckoutEvent] = useState<CheckInCameraEvent | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -21,6 +29,23 @@ export default function ParkingCheckOut() {
   const [errorMessage, setErrorMessage] = useState("");
   const lastSyncedPlateRef = useRef("");
   const lastDisplayedCheckoutIdRef = useRef<string | number | null>(null);
+  const activeBranchId = selectedBranchId || user?.branch?.id || undefined;
+
+  useEffect(() => {
+    const loadBranches = async () => {
+      try {
+        const items = await parkingStructureService.branches();
+        setBranches(items);
+        if (!selectedBranchId && items.length > 0) {
+          setSelectedBranchId(user?.branch?.id || items[0].id);
+        }
+      } catch (error) {
+        console.error("Failed to load branches:", error);
+      }
+    };
+
+    void loadBranches();
+  }, [selectedBranchId, user?.branch?.id]);
 
   const handleDetection = (plate: string, conf: number, imageBase64?: string) => {
     setPlateNumber(plate);
@@ -136,7 +161,7 @@ export default function ParkingCheckOut() {
   useEffect(() => {
     const syncLatest = async () => {
       try {
-        const latest = await parkingService.getLatestCheckOut();
+        const latest = await parkingService.getLatestCheckOut(activeBranchId);
         if (!latest?.id || latest.id === lastDisplayedCheckoutIdRef.current) {
           return;
         }
@@ -154,7 +179,7 @@ export default function ParkingCheckOut() {
     }, 1200);
 
     return () => clearInterval(intervalId);
-  }, []);
+  }, [activeBranchId]);
 
   const handleCheckoutEvent = (event: CheckInCameraEvent) => {
     if (event.message === "__STREAM_STARTED__") {
@@ -201,7 +226,8 @@ export default function ParkingCheckOut() {
       const response = await parkingService.checkOut(
         plateNumber.toUpperCase().trim(),
         stationId,
-        checkoutEvent?.imageBase64
+        checkoutEvent?.imageBase64,
+        activeBranchId
       );
 
       const normalizedPlate = plateNumber.toUpperCase().trim();
@@ -290,6 +316,26 @@ export default function ParkingCheckOut() {
           </p>
         </div>
 
+        {branches.length > 0 && (
+          <div className="max-w-md">
+            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Chi nhánh
+            </label>
+            <select
+              value={activeBranchId || ""}
+              onChange={(e) => setSelectedBranchId(e.target.value)}
+              disabled={Boolean(user?.branch?.id)}
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-70 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+            >
+              {branches.map((branch) => (
+                <option key={branch.id} value={branch.id}>
+                  {branch.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
         {/* Alert Messages */}
         {errorMessage && (
           <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800">
@@ -327,6 +373,7 @@ export default function ParkingCheckOut() {
               onCheckInEvent={handleCheckoutEvent}
               stationId={stationId}
               stationMode="exit"
+              branchId={activeBranchId}
             />
           </div>
 
@@ -404,12 +451,12 @@ export default function ParkingCheckOut() {
                   <button
                     onClick={handleCheckOut}
                     disabled={!plateNumber || isProcessing || needsCashConfirmation}
-                    className={`w-full px-4 py-3 rounded-lg font-semibold text-white transition ${
+                    className={`w-full px-4 py-3 rounded-lg font-semibold text-white shadow-theme-sm transition ${
                       result?.success
-                        ? "bg-green-500"
+                        ? "bg-gradient-to-r from-success-500 to-blue-light-500"
                         : needsCashConfirmation
-                          ? "bg-yellow-500"
-                          : "bg-orange-500 hover:bg-orange-600 disabled:bg-gray-400"
+                          ? "bg-gradient-to-r from-warning-500 to-orange-500"
+                          : "bg-gradient-to-r from-orange-500 to-brand-500 hover:from-orange-600 hover:to-brand-600 disabled:from-gray-400 disabled:to-gray-400"
                     }`}
                   >
                     {isProcessing ? "Đang xử lý..." : checkoutStatusText || "Ghi nhận xe ra"}
@@ -418,7 +465,7 @@ export default function ParkingCheckOut() {
                   <button
                     onClick={handleConfirmPayment}
                     disabled={!needsCashConfirmation || isProcessing}
-                    className="w-full px-4 py-3 rounded-lg font-semibold text-white bg-green-600 hover:bg-green-700 disabled:bg-gray-400 transition"
+                    className="w-full px-4 py-3 rounded-lg font-semibold text-white bg-gradient-to-r from-success-600 to-blue-light-600 shadow-theme-sm hover:from-success-700 hover:to-blue-light-700 disabled:from-gray-400 disabled:to-gray-400 transition"
                   >
                     {isProcessing ? "Đang xác nhận..." : "Xác nhận thu tiền mặt"}
                   </button>

@@ -20,6 +20,9 @@ namespace SmartParking.DTOs
 
         [JsonPropertyName("imageBase64")]
         public string? ImageBase64 { get; set; }
+
+        [JsonPropertyName("branchId")]
+        public Guid? BranchId { get; set; }
     }
 
     public class CheckInResult
@@ -52,6 +55,9 @@ namespace SmartParking.DTOs
 
         [JsonPropertyName("imageBase64")]
         public string? ImageBase64 { get; set; }
+
+        [JsonPropertyName("branchId")]
+        public Guid? BranchId { get; set; }
     }
 
     public class CheckOutResult

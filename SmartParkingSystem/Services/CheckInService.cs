@@ -62,6 +62,39 @@ namespace SmartParking.Services
                     };
                 }
 
+                if (request.BranchId.HasValue)
+                {
+                    var capacity = await _context.Branches
+                        .Where(x => x.Id == request.BranchId.Value)
+                        .Select(x => x.MaxVehicleCapacity)
+                        .FirstOrDefaultAsync();
+
+                    if (capacity > 0)
+                    {
+                        var activeVehicleCount = await _context.CheckInOuts
+                            .CountAsync(x =>
+                                x.BranchId == request.BranchId.Value &&
+                                x.Status == "Active" &&
+                                x.CheckOutTime == null);
+
+                        if (activeVehicleCount >= capacity)
+                        {
+                            _logger.LogWarning(
+                                "Checkin rejected because branch {BranchId} is full: {ActiveVehicleCount}/{Capacity}",
+                                request.BranchId.Value,
+                                activeVehicleCount,
+                                capacity);
+
+                            return new CheckInResult
+                            {
+                                Success = false,
+                                Message = $"Bai xe da day ({activeVehicleCount}/{capacity}). Khong the checkin them xe.",
+                                ErrorCode = "PARKING_FULL"
+                            };
+                        }
+                    }
+                }
+
                 await _redis.AddCheckinAsync(plate, now);
 
                 var vehicle = await _context.Vehicle
@@ -72,6 +105,7 @@ namespace SmartParking.Services
                 {
                     VehicleId = vehicle?.Id,
                     UserId = vehicle?.UserId,
+                    BranchId = request.BranchId,
                     LicensePlate = plate,
                     PlateImagePath = string.Empty,
                     CheckInTime = now,
@@ -97,6 +131,7 @@ namespace SmartParking.Services
                     // Lấy parking lot đầu tiên (mặc định) vì CheckInRequest không có ParkingLotId
                     var parkingLot = await _context.ParkingLots
                         .Include(p => p.Branch)
+                        .Where(p => !request.BranchId.HasValue || p.BranchId == request.BranchId.Value)
                         .FirstOrDefaultAsync();
 
                     var parkingLotName = parkingLot?.Name ?? "Chưa xác định";
@@ -119,13 +154,22 @@ namespace SmartParking.Services
                 }
 
                 _logger.LogInformation("Checkin - {Plate} - {Time:dd/M/yyyy - HH:mm}", plate, now);
-                await _parkingHub.Clients.All.SendAsync("ParkingDashboardUpdated", new
+                var dashboardPayload = new
                 {
                     type = "checkin",
                     checkInId = checkinRecord.Id,
                     licensePlate = plate,
                     checkInTime = now
-                });
+                };
+
+                await _parkingHub.Clients.Group(ParkingHub.AdminGroup)
+                    .SendAsync("ParkingDashboardUpdated", dashboardPayload);
+                if (checkinRecord.BranchId.HasValue)
+                {
+                    await _parkingHub.Clients.Group(ParkingHub.BranchGroup(checkinRecord.BranchId.Value))
+                        .SendAsync("ParkingDashboardUpdated", dashboardPayload);
+                }
+
                 await _arduinoSerialService.SendCheckInOkAsync(plate);
 
                 return new CheckInResult

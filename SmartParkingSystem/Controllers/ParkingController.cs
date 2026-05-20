@@ -14,6 +14,7 @@ namespace SmartParking.Controllers
         private readonly ICheckOutService _checkOutService;
         private readonly IParkingHistoryService _parkingHistoryService;
         private readonly IVehicleLocationService _vehicleLocationService;
+        private readonly IBranchAuthorizationService _branchAuthorizationService;
         private readonly ILogger<ParkingController> _logger;
 
         public ParkingController(
@@ -21,17 +22,19 @@ namespace SmartParking.Controllers
             ICheckOutService checkOutService,
             IParkingHistoryService parkingHistoryService,
             IVehicleLocationService vehicleLocationService,
+            IBranchAuthorizationService branchAuthorizationService,
             ILogger<ParkingController> logger)
         {
             _checkInService = checkInService;
             _checkOutService = checkOutService;
             _parkingHistoryService = parkingHistoryService;
             _vehicleLocationService = vehicleLocationService;
+            _branchAuthorizationService = branchAuthorizationService;
             _logger = logger;
         }
 
         [HttpPost("check-in")]
-        [Authorize(Roles = "Staff,Admin")]
+        [Authorize(Roles = "Staff,Admin,Manager")]
         [Produces("application/json")]
         [ProducesResponseType(typeof(CheckInResult), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(CheckInResult), StatusCodes.Status400BadRequest)]
@@ -49,6 +52,7 @@ namespace SmartParking.Controllers
                 request.StationId,
                 request.Confidence);
 
+            request.BranchId = await ResolveBranchScopeAsync(request.BranchId);
             var result = await _checkInService.ProcessCheckInAsync(request);
 
             _logger.LogInformation(
@@ -61,7 +65,7 @@ namespace SmartParking.Controllers
         }
 
         [HttpPost("check-out")]
-        [Authorize(Roles = "Staff,Admin")]
+        [Authorize(Roles = "Staff,Admin,Manager")]
         [Produces("application/json")]
         [ProducesResponseType(typeof(CheckOutResult), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(CheckOutResult), StatusCodes.Status400BadRequest)]
@@ -78,6 +82,7 @@ namespace SmartParking.Controllers
                 request.PlateNumber,
                 request.StationId);
 
+            request.BranchId = await ResolveBranchScopeAsync(request.BranchId);
             var result = await _checkOutService.ProcessCheckOutAsync(request);
 
             _logger.LogInformation(
@@ -95,7 +100,7 @@ namespace SmartParking.Controllers
         }
 
         [HttpPost("check-out/{checkOutId:int}/confirm-payment")]
-        [Authorize(Roles = "Staff,Admin")]
+        [Authorize(Roles = "Staff,Admin,Manager")]
         [Produces("application/json")]
         [ProducesResponseType(typeof(CheckOutResult), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(CheckOutResult), StatusCodes.Status400BadRequest)]
@@ -107,11 +112,20 @@ namespace SmartParking.Controllers
                 return ValidationProblem(ModelState);
             }
 
+            var branchScope = await ResolveBranchScopeAsync();
+            if (branchScope.HasValue)
+            {
+                var session = await _parkingHistoryService.GetSessionDetailAsync(checkOutId, branchScope);
+                if (session is null)
+                    return NotFound(new { message = "Parking session not found in your branch" });
+            }
+
             var result = await _checkOutService.ConfirmPendingPaymentAsync(checkOutId, request);
             return result.Success ? Ok(result) : BadRequest(result);
         }
 
         [HttpGet("history/{plate}")]
+        [Authorize(Roles = "Staff,Admin,Manager")]
         [Produces("application/json")]
         public async Task<IActionResult> GetCheckInOutHistory(string plate)
         {
@@ -120,10 +134,11 @@ namespace SmartParking.Controllers
                 return BadRequest(new { message = "Bien so xe khong duoc de trong" });
             }
 
-            return Ok(await _parkingHistoryService.GetHistoryByPlateAsync(plate));
+            return Ok(await _parkingHistoryService.GetHistoryByPlateAsync(plate, await ResolveBranchScopeAsync()));
         }
 
         [HttpGet("history")]
+        [Authorize(Roles = "Staff,Admin,Manager")]
         [Produces("application/json")]
         public async Task<IActionResult> GetHistory(
             [FromQuery] string? plateNumber = null,
@@ -132,8 +147,7 @@ namespace SmartParking.Controllers
         {
             try
             {
-                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-                var history = await _parkingHistoryService.GetMyHistoryAsync(userId);
+                var history = await _parkingHistoryService.GetHistoryAsync(await ResolveBranchScopeAsync());
                 
                 // Apply filters
                 if (!string.IsNullOrEmpty(plateNumber))
@@ -154,36 +168,37 @@ namespace SmartParking.Controllers
         }
 
         [HttpGet("latest-check-in")]
+        [Authorize(Roles = "Staff,Admin,Manager")]
         [Produces("application/json")]
-        public async Task<IActionResult> GetLatestCheckIn()
+        public async Task<IActionResult> GetLatestCheckIn([FromQuery] Guid? branchId = null)
         {
-            var latest = await _parkingHistoryService.GetLatestCheckInAsync();
+            var latest = await _parkingHistoryService.GetLatestCheckInAsync(await ResolveBranchScopeAsync(branchId));
             return latest is null ? NotFound(new { message = "No check-in records found" }) : Ok(latest);
         }
 
         [HttpGet("latest-check-out")]
-        [Authorize(Roles = "Staff,Admin")]
+        [Authorize(Roles = "Staff,Admin,Manager")]
         [Produces("application/json")]
-        public async Task<IActionResult> GetLatestCheckOut()
+        public async Task<IActionResult> GetLatestCheckOut([FromQuery] Guid? branchId = null)
         {
-            var latest = await _parkingHistoryService.GetLatestCheckOutAsync();
+            var latest = await _parkingHistoryService.GetLatestCheckOutAsync(await ResolveBranchScopeAsync(branchId));
             return latest is null ? NotFound(new { message = "No check-out records found" }) : Ok(latest);
         }
 
         [HttpGet("dashboard")]
-        [Authorize(Roles = "Staff,Admin")]
+        [Authorize(Roles = "Staff,Admin,Manager")]
         [Produces("application/json")]
-        public async Task<IActionResult> GetDashboard()
+        public async Task<IActionResult> GetDashboard([FromQuery] Guid? branchId = null)
         {
-            return Ok(await _parkingHistoryService.GetDashboardAsync());
+            return Ok(await _parkingHistoryService.GetDashboardAsync(await ResolveBranchScopeAsync(branchId)));
         }
 
         [HttpGet("history/{id:int}/detail")]
-        [Authorize(Roles = "Staff,Admin")]
+        [Authorize(Roles = "Staff,Admin,Manager")]
         [Produces("application/json")]
         public async Task<IActionResult> GetSessionDetail(int id)
         {
-            var session = await _parkingHistoryService.GetSessionDetailAsync(id);
+            var session = await _parkingHistoryService.GetSessionDetailAsync(id, await ResolveBranchScopeAsync());
             return session is null ? NotFound(new { message = "Parking session not found" }) : Ok(session);
         }
 
@@ -201,7 +216,7 @@ namespace SmartParking.Controllers
         }
 
         [HttpPost("location-detection")]
-        [Authorize(Roles = "Staff,Admin")]
+        [Authorize(Roles = "Staff,Admin,Manager")]
         [Produces("application/json")]
         [ProducesResponseType(typeof(VehicleLocationDetectionResult), StatusCodes.Status200OK)]
         public async Task<IActionResult> ProcessLocationDetection([FromBody] VehicleLocationDetectionRequest request)
@@ -212,12 +227,13 @@ namespace SmartParking.Controllers
                 return ValidationProblem(ModelState);
             }
 
+            request.BranchId = await ResolveBranchScopeAsync(request.BranchId);
             var result = await _vehicleLocationService.ProcessDetectionAsync(request);
             return Ok(result);
         }
 
         [HttpPost("location-detections/batch")]
-        [Authorize(Roles = "Staff,Admin")]
+        [Authorize(Roles = "Staff,Admin,Manager")]
         [Produces("application/json")]
         [ProducesResponseType(typeof(VehicleLocationDetectionBatchResult), StatusCodes.Status200OK)]
         public async Task<IActionResult> ProcessLocationDetectionBatch([FromBody] VehicleLocationDetectionBatchRequest request)
@@ -228,6 +244,7 @@ namespace SmartParking.Controllers
                 return ValidationProblem(ModelState);
             }
 
+            request.BranchId = await ResolveBranchScopeAsync(request.BranchId);
             var result = await _vehicleLocationService.ProcessDetectionBatchAsync(request);
             return Ok(result);
         }
@@ -247,19 +264,19 @@ namespace SmartParking.Controllers
         }
 
         [HttpGet("vehicle-location-alerts")]
-        [Authorize(Roles = "Staff,Admin")]
+        [Authorize(Roles = "Staff,Admin,Manager")]
         [Produces("application/json")]
         public async Task<IActionResult> GetVehicleLocationAlerts([FromQuery] int take = 50)
         {
-            return Ok(await _vehicleLocationService.GetRecentAlertsAsync(take));
+            return Ok(await _vehicleLocationService.GetRecentAlertsAsync(take, await ResolveBranchScopeAsync()));
         }
 
         [HttpGet("vehicle-location-alerts/{id:int}")]
-        [Authorize(Roles = "Staff,Admin")]
+        [Authorize(Roles = "Staff,Admin,Manager")]
         [Produces("application/json")]
         public async Task<IActionResult> GetVehicleLocationAlert(int id)
         {
-            var alert = await _vehicleLocationService.GetLocationAlertAsync(id);
+            var alert = await _vehicleLocationService.GetLocationAlertAsync(id, await ResolveBranchScopeAsync());
             return alert is null ? NotFound(new { message = "Vehicle location alert not found" }) : Ok(alert);
         }
 
@@ -275,6 +292,15 @@ namespace SmartParking.Controllers
             {
                 _logger.LogError("[{Action}] Validation error on {Field}: {Errors}", actionName, field, string.Join(" | ", errors));
             }
+        }
+
+        private async Task<Guid?> ResolveBranchScopeAsync(Guid? requestedBranchId = null)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrWhiteSpace(userId))
+                throw new UnauthorizedAccessException("User not found");
+
+            return await _branchAuthorizationService.GetBranchScopeAsync(userId, User.IsInRole("Admin"), requestedBranchId);
         }
     }
 }

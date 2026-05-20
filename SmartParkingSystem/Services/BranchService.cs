@@ -20,7 +20,8 @@ namespace SmartParking.Services
             var branch = new Branch
             {
                 Name = dto.Name,
-                Address = dto.Address
+                Address = dto.Address,
+                MaxVehicleCapacity = dto.MaxVehicleCapacity > 0 ? dto.MaxVehicleCapacity : 100
             };
 
             _context.Branches.Add(branch);
@@ -28,14 +29,21 @@ namespace SmartParking.Services
             await _context.SaveChangesAsync();
         }
 
-        public async Task<IEnumerable<BranchDto>> GetAllAsync()
+        public async Task<IEnumerable<BranchDto>> GetAllAsync(Guid? branchId = null)
         {
-            return await _context.Branches
+            var query = _context.Branches.AsNoTracking();
+            if (branchId.HasValue)
+            {
+                query = query.Where(b => b.Id == branchId.Value);
+            }
+
+            return await query
                 .Select(b => new BranchDto
                 {
                     Id = b.Id,
                     Name = b.Name,
-                    Address = b.Address
+                    Address = b.Address,
+                    MaxVehicleCapacity = b.MaxVehicleCapacity
                 })
                 .ToListAsync();
         }
@@ -49,6 +57,7 @@ namespace SmartParking.Services
                     Id = b.Id,
                     Name = b.Name,
                     Address = b.Address,
+                    MaxVehicleCapacity = b.MaxVehicleCapacity,
                     ParkingLots = b.ParkingLots.Select(p => new ParkingLotDetailDto
                     {
                         Id = p.Id,
@@ -80,6 +89,7 @@ namespace SmartParking.Services
 
             branch.Name = dto.Name;
             branch.Address = dto.Address;
+            branch.MaxVehicleCapacity = dto.MaxVehicleCapacity > 0 ? dto.MaxVehicleCapacity : branch.MaxVehicleCapacity;
 
             await _context.SaveChangesAsync();
         }

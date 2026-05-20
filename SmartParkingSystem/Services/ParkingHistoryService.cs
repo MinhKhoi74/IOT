@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using SmartParking.Data;
 using SmartParking.DTOs.Parking;
+using SmartParking.Models;
 using SmartParking.Services.Interfaces;
 
 namespace SmartParking.Services
@@ -16,10 +17,22 @@ namespace SmartParking.Services
 
         public async Task<List<ParkingHistoryItemDto>> GetHistoryByPlateAsync(string plate)
         {
+            return await GetHistoryByPlateAsync(plate, null);
+        }
+
+        public async Task<List<ParkingHistoryItemDto>> GetHistoryByPlateAsync(string plate, Guid? branchId)
+        {
             plate = plate.ToUpper().Trim();
 
-            return await BuildQuery()
+            return await ApplyBranchScope(BuildQuery(), branchId)
                 .Where(x => x.LicensePlate == plate)
+                .OrderByDescending(x => x.CheckInTime)
+                .ToListAsync();
+        }
+
+        public async Task<List<ParkingHistoryItemDto>> GetHistoryAsync(Guid? branchId = null)
+        {
+            return await ApplyBranchScope(BuildQuery(), branchId)
                 .OrderByDescending(x => x.CheckInTime)
                 .ToListAsync();
         }
@@ -32,49 +45,71 @@ namespace SmartParking.Services
                 .ToListAsync();
         }
 
-        public async Task<ParkingHistoryItemDto?> GetLatestCheckInAsync()
+        public async Task<ParkingHistoryItemDto?> GetLatestCheckInAsync(Guid? branchId = null)
         {
-            return await BuildQuery()
+            return await ApplyBranchScope(BuildQuery(), branchId)
                 .OrderByDescending(x => x.CheckInTime)
                 .FirstOrDefaultAsync();
         }
 
-        public async Task<ParkingHistoryItemDto?> GetLatestCheckOutAsync()
+        public async Task<ParkingHistoryItemDto?> GetLatestCheckOutAsync(Guid? branchId = null)
         {
-            return await BuildQuery()
+            return await ApplyBranchScope(BuildQuery(), branchId)
                 .Where(x => x.CheckOutTime != null)
                 .OrderByDescending(x => x.CheckOutTime)
                 .FirstOrDefaultAsync();
         }
 
-        public async Task<ParkingDashboardDto> GetDashboardAsync()
+        public async Task<ParkingDashboardDto> GetDashboardAsync(Guid? branchId = null)
         {
-            var sessions = await BuildQuery()
+            var sessions = await ApplyBranchScope(BuildQuery(), branchId)
                 .OrderByDescending(x => x.CheckInTime)
                 .ToListAsync();
 
-            var activeVehicleCount = await _context.CheckInOuts
+            var checkIns = ApplyBranchScope(_context.CheckInOuts.AsQueryable(), branchId);
+
+            var activeVehicleCount = await checkIns
                 .CountAsync(x => x.Status == "Active" && x.CheckOutTime == null);
 
-            var totalRevenue = await _context.CheckInOuts
+            var casualRevenue = await checkIns
                 .Where(x => x.PaymentStatus == "Paid")
                 .SumAsync(x => x.FeeAmount);
 
-            var monthlyPassRevenue = await _context.WalletTransactions
-                .Where(x => x.ReferenceType == "MonthlyPass" && x.Type == "MonthlyPassRevenue")
-                .SumAsync(x => (decimal?)x.Amount) ?? 0m;
+            var maxVehicleCapacity = branchId.HasValue
+                ? await _context.Branches
+                    .Where(x => x.Id == branchId.Value)
+                    .Select(x => (int?)x.MaxVehicleCapacity)
+                    .FirstOrDefaultAsync()
+                : await _context.Branches.SumAsync(x => (int?)x.MaxVehicleCapacity) ?? 0;
+
+            var monthlyPassRevenue = branchId.HasValue
+                ? 0m
+                : (await _context.MonthlyPasses.SumAsync(x => (decimal?)x.Amount) ?? 0m);
 
             return new ParkingDashboardDto
             {
                 ActiveVehicleCount = activeVehicleCount,
-                TotalRevenue = totalRevenue + monthlyPassRevenue,
+                MaxVehicleCapacity = maxVehicleCapacity,
+                TotalRevenue = casualRevenue + monthlyPassRevenue,
+                CasualRevenue = casualRevenue,
+                MonthlyPassRevenue = monthlyPassRevenue,
                 Sessions = sessions
             };
         }
 
-        public async Task<ParkingHistoryItemDto?> GetSessionDetailAsync(int id)
+        public async Task<ParkingHistoryItemDto?> GetSessionDetailAsync(int id, Guid? branchId = null)
         {
-            return await BuildQuery().FirstOrDefaultAsync(x => x.Id == id);
+            return await ApplyBranchScope(BuildQuery(), branchId).FirstOrDefaultAsync(x => x.Id == id);
+        }
+
+        private static IQueryable<CheckInOut> ApplyBranchScope(IQueryable<CheckInOut> query, Guid? branchId)
+        {
+            return branchId.HasValue ? query.Where(x => x.BranchId == branchId.Value) : query;
+        }
+
+        private static IQueryable<ParkingHistoryItemDto> ApplyBranchScope(IQueryable<ParkingHistoryItemDto> query, Guid? branchId)
+        {
+            return branchId.HasValue ? query.Where(x => x.BranchId == branchId.Value) : query;
         }
 
         private IQueryable<ParkingHistoryItemDto> BuildQuery()
@@ -97,7 +132,9 @@ namespace SmartParking.Services
                     CheckOutStationId = x.CheckOutStationId,
                     CheckOutImageBase64 = x.CheckOutImageBase64,
                     VehicleId = x.VehicleId,
-                    UserId = x.UserId
+                    UserId = x.UserId,
+                    BranchId = x.BranchId,
+                    BranchName = x.Branch != null ? x.Branch.Name : null
                 });
         }
     }

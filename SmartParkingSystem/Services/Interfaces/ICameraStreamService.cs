@@ -6,6 +6,7 @@ public record CameraStartRequest(
     string ApiHost,
     int ApiPort,
     string StationMode,
+    Guid? BranchId,
     string? BackendToken
 );
 
@@ -19,6 +20,7 @@ public record ZoneCameraStartRequest(
     string? ParkingLotCode,
     string? ZoneCode,
     string? ColumnCode,
+    Guid? BranchId,
     string? BackendToken
 );
 

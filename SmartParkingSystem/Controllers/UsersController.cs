@@ -48,12 +48,13 @@ namespace SmartParking.Controllers
         }
 
         [HttpGet("list")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> GetAllUsers()
         {
             try
             {
-                var users = await _userService.GetAllUsersAsync();
+                var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                var users = await _userService.GetAllUsersAsync(currentUserId);
                 return Ok(users);
             }
             catch (Exception ex)
@@ -63,7 +64,7 @@ namespace SmartParking.Controllers
         }
 
         [HttpGet("{userId}/detail")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> GetUserDetail(string userId)
         {
             try
@@ -79,12 +80,13 @@ namespace SmartParking.Controllers
         }
 
         [HttpPost("create-customer")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> CreateCustomer(CreateCustomerDto dto)
         {
             try
             {
-                var userId = await _userService.CreateCustomerAsync(dto);
+                var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                var userId = await _userService.CreateCustomerAsync(dto, currentUserId);
                 return Ok(new { message = "Customer created successfully", userId });
             }
             catch (Exception ex)
@@ -109,12 +111,13 @@ namespace SmartParking.Controllers
         }
 
         [HttpDelete("{userId}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> DeleteUser(string userId)
         {
             try
             {
-                await _userService.DeleteUserAsync(userId);
+                var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                await _userService.DeleteUserAsync(userId, currentUserId);
                 return Ok(new { message = "User deleted successfully" });
             }
             catch (Exception ex)
@@ -141,7 +144,7 @@ namespace SmartParking.Controllers
         }
 
         [HttpPost("create-staff")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> CreateStaff(CreateStaffDto dto)
         {
             try

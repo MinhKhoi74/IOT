@@ -7,6 +7,7 @@ namespace SmartParking.Models
         public Guid? VehicleId { get; set; }
         public string? UserId { get; set; }
         public int? CheckInOutId { get; set; }
+        public Guid? BranchId { get; set; }
 
         public string CameraId { get; set; } = string.Empty;
         public string? ParkingLotCode { get; set; }
@@ -28,5 +29,6 @@ namespace SmartParking.Models
         public Vehicle? Vehicle { get; set; }
         public Identity.ApplicationUser? User { get; set; }
         public CheckInOut? CheckInOut { get; set; }
+        public Branch? Branch { get; set; }
     }
 }

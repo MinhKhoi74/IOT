@@ -6,15 +6,40 @@ import {
   CheckInCameraEvent,
 } from "../../components/parking/CameraStream";
 import { parkingService } from "../../services/parkingService";
+import { useAuth } from "../../context/AuthContext";
+import {
+  Branch,
+  parkingStructureService,
+} from "../../services/parkingStructureService";
 
 export default function ParkingCheckIn() {
+  const { user } = useAuth();
   const [plateNumber, setPlateNumber] = useState("");
   const [stationId, setStationId] = useState("STATION-01");
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [selectedBranchId, setSelectedBranchId] = useState(user?.branch?.id || "");
   const [confidence, setConfidence] = useState(0);
   const [checkInEvent, setCheckInEvent] = useState<CheckInCameraEvent | null>(null);
   const [isWatchingLatestCheckIn, setIsWatchingLatestCheckIn] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const lastDisplayedCheckInIdRef = useRef<string | number | null>(null);
+  const activeBranchId = selectedBranchId || user?.branch?.id || undefined;
+
+  useEffect(() => {
+    const loadBranches = async () => {
+      try {
+        const items = await parkingStructureService.branches();
+        setBranches(items);
+        if (!selectedBranchId && items.length > 0) {
+          setSelectedBranchId(user?.branch?.id || items[0].id);
+        }
+      } catch (error) {
+        console.error("Failed to load branches:", error);
+      }
+    };
+
+    void loadBranches();
+  }, [selectedBranchId, user?.branch?.id]);
 
   const handleDetection = (plate: string, conf: number) => {
     setPlateNumber(plate);
@@ -37,7 +62,7 @@ export default function ParkingCheckIn() {
 
     const fetchLatestCheckIn = async () => {
       try {
-        const latest = await parkingService.getLatestCheckIn();
+        const latest = await parkingService.getLatestCheckIn(activeBranchId);
         if (!latest?.id) {
           return;
         }
@@ -72,7 +97,7 @@ export default function ParkingCheckIn() {
     }, 1000);
 
     return () => clearInterval(intervalId);
-  }, [isWatchingLatestCheckIn]);
+  }, [isWatchingLatestCheckIn, activeBranchId]);
 
   const checkInButtonText = checkInEvent
     ? checkInEvent.message
@@ -98,6 +123,7 @@ export default function ParkingCheckIn() {
         plateNumber: plate,
         stationId,
         confidence: confidence || 0.9,
+        branchId: activeBranchId,
       });
 
       setPlateNumber(plate);
@@ -135,6 +161,26 @@ export default function ParkingCheckIn() {
           </p>
         </div>
 
+        {branches.length > 0 && (
+          <div className="max-w-md">
+            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Chi nhánh
+            </label>
+            <select
+              value={activeBranchId || ""}
+              onChange={(e) => setSelectedBranchId(e.target.value)}
+              disabled={Boolean(user?.branch?.id)}
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-70 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+            >
+              {branches.map((branch) => (
+                <option key={branch.id} value={branch.id}>
+                  {branch.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
         {checkInEvent && (
           <div
             className={`p-4 rounded-lg border ${
@@ -162,6 +208,7 @@ export default function ParkingCheckIn() {
               onCheckInEvent={handleCheckInEvent}
               stationId={stationId}
               stationMode="entrance"
+              branchId={activeBranchId}
             />
           </div>
 
@@ -233,12 +280,12 @@ export default function ParkingCheckIn() {
                 <button
                   onClick={handleManualCheckIn}
                   disabled={!plateNumber || isProcessing}
-                  className={`w-full px-4 py-3 rounded-lg font-semibold text-white transition ${
+                  className={`w-full px-4 py-3 rounded-lg font-semibold text-white shadow-theme-sm transition ${
                     checkInEvent
                       ? checkInEvent.success
-                        ? "bg-green-500"
-                        : "bg-red-500"
-                      : "bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400"
+                        ? "bg-gradient-to-r from-success-500 to-blue-light-500"
+                        : "bg-gradient-to-r from-error-500 to-orange-500"
+                      : "bg-gradient-to-r from-brand-500 via-blue-light-500 to-success-500 hover:from-brand-600 hover:via-blue-light-600 hover:to-success-600 disabled:from-gray-400 disabled:via-gray-400 disabled:to-gray-400"
                   }`}
                 >
                   {isProcessing ? "Đang xử lý..." : checkInButtonText}

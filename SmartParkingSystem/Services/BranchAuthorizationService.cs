@@ -65,5 +65,25 @@ namespace SmartParking.Services
             if (!hasAccess)
                 throw new UnauthorizedAccessException("Slot access denied");
         }
+
+        public async Task<Guid?> GetBranchScopeAsync(string userId, bool isAdmin, Guid? requestedBranchId = null)
+        {
+            if (isAdmin)
+                return requestedBranchId;
+
+            var branchId = await _context.Users
+                .AsNoTracking()
+                .Where(x => x.Id == userId)
+                .Select(x => x.BranchId)
+                .FirstOrDefaultAsync();
+
+            if (!branchId.HasValue)
+                throw new UnauthorizedAccessException("User has no assigned branch");
+
+            if (requestedBranchId.HasValue && requestedBranchId.Value != branchId.Value)
+                throw new UnauthorizedAccessException("Branch access denied");
+
+            return branchId.Value;
+        }
     }
 }

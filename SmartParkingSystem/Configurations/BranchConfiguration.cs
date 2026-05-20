@@ -11,6 +11,7 @@ namespace SmartParking.Configurations
             builder.HasKey(x => x.Id);
 
             builder.Property(x => x.Name).IsRequired().HasMaxLength(200);
+            builder.Property(x => x.MaxVehicleCapacity).HasDefaultValue(100);
 
             builder.HasMany(x => x.ParkingLots)
                 .WithOne(x => x.Branch)

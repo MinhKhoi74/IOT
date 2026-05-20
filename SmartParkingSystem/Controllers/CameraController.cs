@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SmartParking.Services.Interfaces;
@@ -6,19 +7,24 @@ namespace SmartParking.Controllers;
 
 [ApiController]
 [Route("api/camera")]
-[Authorize(Roles = "Staff,Admin")]
+[Authorize(Roles = "Staff,Admin,Manager")]
 public class CameraController : ControllerBase
 {
     private readonly ICameraStreamService _cameraStreamService;
+    private readonly IBranchAuthorizationService _branchAuthorizationService;
 
-    public CameraController(ICameraStreamService cameraStreamService)
+    public CameraController(
+        ICameraStreamService cameraStreamService,
+        IBranchAuthorizationService branchAuthorizationService)
     {
         _cameraStreamService = cameraStreamService;
+        _branchAuthorizationService = branchAuthorizationService;
     }
 
     [HttpPost("start")]
     public async Task<IActionResult> Start([FromBody] CameraStartHttpRequest request, CancellationToken cancellationToken)
     {
+        var branchId = await ResolveBranchScopeAsync(request.BranchId);
         var stationMode = string.Equals(request.StationMode, "exit", StringComparison.OrdinalIgnoreCase)
             ? "exit"
             : "entrance";
@@ -30,6 +36,7 @@ public class CameraController : ControllerBase
                 request.ApiHost,
                 request.ApiPort,
                 stationMode,
+                branchId,
                 GetBearerToken()
             ),
             cancellationToken
@@ -55,6 +62,7 @@ public class CameraController : ControllerBase
     [HttpPost("zone/start")]
     public async Task<IActionResult> StartZone([FromBody] ZoneCameraStartHttpRequest request, CancellationToken cancellationToken)
     {
+        var branchId = await ResolveBranchScopeAsync(request.BranchId);
         var status = await _cameraStreamService.StartZoneAsync(
             new ZoneCameraStartRequest(
                 request.CameraIp,
@@ -66,6 +74,7 @@ public class CameraController : ControllerBase
                 request.ParkingLotCode,
                 request.ZoneCode,
                 request.ColumnCode,
+                branchId,
                 GetBearerToken()
             ),
             cancellationToken
@@ -97,6 +106,15 @@ public class CameraController : ControllerBase
             ? authHeader[bearerPrefix.Length..].Trim()
             : null;
     }
+
+    private async Task<Guid?> ResolveBranchScopeAsync(Guid? requestedBranchId = null)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(userId))
+            throw new UnauthorizedAccessException("User not found");
+
+        return await _branchAuthorizationService.GetBranchScopeAsync(userId, User.IsInRole("Admin"), requestedBranchId);
+    }
 }
 
 public class CameraStartHttpRequest
@@ -106,6 +124,7 @@ public class CameraStartHttpRequest
     public string ApiHost { get; set; } = "localhost";
     public int ApiPort { get; set; } = 5001;
     public string StationMode { get; set; } = "entrance";
+    public Guid? BranchId { get; set; }
 }
 
 public class ZoneCameraStartHttpRequest
@@ -119,6 +138,7 @@ public class ZoneCameraStartHttpRequest
     public string? ParkingLotCode { get; set; }
     public string? ZoneCode { get; set; }
     public string? ColumnCode { get; set; }
+    public Guid? BranchId { get; set; }
 }
 
 public class ZoneCameraStopHttpRequest

@@ -118,6 +118,11 @@ class ApiService {
     });
   }
 
+  Future<double> getMonthlyPassPrice() async {
+    final json = await _get('/monthly-passes/price');
+    return (json['monthlyAmount'] as num? ?? 200000).toDouble();
+  }
+
   Future<List<ParkingHistoryItem>> getParkingHistory() async {
     final data = await _getList('/parking/history/me');
     return data
@@ -132,6 +137,11 @@ class ApiService {
         .map((item) =>
             VehicleLocationInfo.fromJson(item as Map<String, dynamic>))
         .toList();
+  }
+
+  Future<ParkingMapInfo> getParkingMap(String branchId) async {
+    final json = await _get('/parking-map/branches/$branchId');
+    return ParkingMapInfo.fromJson(json);
   }
 
   Future<List<VehicleInfo>> getVehicles() async {

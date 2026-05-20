@@ -18,6 +18,9 @@ export default function MonthlyPasses() {
   const [ownerPhone, setOwnerPhone] = useState("");
   const [validFrom, setValidFrom] = useState(today);
   const [validTo, setValidTo] = useState(nextMonth);
+  const [amount, setAmount] = useState(0);
+  const [monthlyAmount, setMonthlyAmount] = useState(0);
+  const [priceInput, setPriceInput] = useState(0);
   const [isActive, setIsActive] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -26,8 +29,14 @@ export default function MonthlyPasses() {
     setPasses(await monthlyPassService.getAll());
   };
 
+  const loadPrice = async () => {
+    const price = await monthlyPassService.getPrice();
+    setMonthlyAmount(price);
+    setPriceInput(price);
+  };
+
   useEffect(() => {
-    void loadPasses();
+    void Promise.all([loadPasses(), loadPrice()]);
   }, []);
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -42,11 +51,13 @@ export default function MonthlyPasses() {
         ownerPhone: ownerPhone.trim() || undefined,
         validFrom,
         validTo,
+        amount,
         isActive,
       });
       setLicensePlate("");
       setOwnerName("");
       setOwnerPhone("");
+      setAmount(0);
       setIsActive(true);
       setMessage("Đã lưu vé tháng.");
       await loadPasses();
@@ -60,6 +71,17 @@ export default function MonthlyPasses() {
   const handleDelete = async (id: number) => {
     await monthlyPassService.delete(id);
     await loadPasses();
+  };
+
+  const handleSavePrice = async () => {
+    try {
+      const price = await monthlyPassService.updatePrice(priceInput);
+      setMonthlyAmount(price);
+      setPriceInput(price);
+      setMessage("Đã cập nhật giá vé tháng.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Không cập nhật được giá vé tháng.");
+    }
   };
 
   return (
@@ -84,6 +106,28 @@ export default function MonthlyPasses() {
             {message}
           </div>
         )}
+
+        <ComponentCard title="Giá vé tháng">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_180px_auto]">
+            <div className="rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-700 dark:bg-gray-900/30 dark:text-gray-300">
+              Giá hiện tại: <span className="font-semibold">{monthlyAmount.toLocaleString("vi-VN")}đ</span> / tháng
+            </div>
+            <input
+              type="number"
+              min="1"
+              value={priceInput}
+              onChange={(event) => setPriceInput(Number(event.target.value) || 0)}
+              className="rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+            />
+            <button
+              type="button"
+              onClick={handleSavePrice}
+              className="rounded-lg bg-emerald-600 px-4 py-2 font-semibold text-white hover:bg-emerald-700"
+            >
+              Lưu giá
+            </button>
+          </div>
+        </ComponentCard>
 
         <ComponentCard title="Thêm hoặc cập nhật vé tháng">
           <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -127,9 +171,17 @@ export default function MonthlyPasses() {
               onChange={(event) => setValidTo(event.target.value)}
               className="rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
             />
+            <input
+              type="number"
+              min="0"
+              value={amount}
+              onChange={(event) => setAmount(Number(event.target.value) || 0)}
+              placeholder="Số tiền tính doanh thu"
+              className="rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+            />
             <button
               disabled={isSaving}
-              className="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700 disabled:bg-gray-400 md:col-span-2"
+              className="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700 disabled:bg-gray-400"
             >
               {isSaving ? "Đang lưu..." : "Lưu vé tháng"}
             </button>
@@ -145,6 +197,7 @@ export default function MonthlyPasses() {
                   <th className="px-3 py-2">Chủ xe</th>
                   <th className="px-3 py-2">Điện thoại</th>
                   <th className="px-3 py-2">Hiệu lực</th>
+                  <th className="px-3 py-2">Doanh thu</th>
                   <th className="px-3 py-2">Trạng thái</th>
                   <th className="px-3 py-2">Thao tác</th>
                 </tr>
@@ -158,6 +211,7 @@ export default function MonthlyPasses() {
                     <td className="px-3 py-2">
                       {new Date(pass.validFrom).toLocaleDateString()} - {new Date(pass.validTo).toLocaleDateString()}
                     </td>
+                    <td className="px-3 py-2">{(pass.amount || 0).toLocaleString("vi-VN")}đ</td>
                     <td className="px-3 py-2">{pass.isActive ? "Đang hiệu lực" : "Ngưng hiệu lực"}</td>
                     <td className="px-3 py-2">
                       <button

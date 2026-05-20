@@ -39,6 +39,7 @@ class ParkingAPIClient:
         self.timeout = timeout
         self.session = requests.Session()
         self.api_token = os.environ.get("SMARTPARKING_API_TOKEN", "").strip()
+        self.branch_id = os.environ.get("SMARTPARKING_BRANCH_ID", "").strip()
 
     def send_plate(
         self,
@@ -70,6 +71,7 @@ class ParkingAPIClient:
                 "stationId": station_id,
                 "confidence": round(float(confidence), 4),
                 "imageBase64": image_b64,
+                "branchId": self.branch_id or None,
             }
 
             base_url = self.api_url.replace("/parking", "")

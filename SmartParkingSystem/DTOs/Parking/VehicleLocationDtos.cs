@@ -29,6 +29,9 @@ namespace SmartParking.DTOs
         [JsonPropertyName("locationName")]
         public string LocationName { get; set; } = string.Empty;
 
+        [JsonPropertyName("branchId")]
+        public Guid? BranchId { get; set; }
+
         [Range(0, 1)]
         [JsonPropertyName("confidence")]
         public float Confidence { get; set; } = 0.9f;
@@ -63,6 +66,9 @@ namespace SmartParking.DTOs
         [StringLength(250)]
         [JsonPropertyName("locationName")]
         public string LocationName { get; set; } = string.Empty;
+
+        [JsonPropertyName("branchId")]
+        public Guid? BranchId { get; set; }
 
         [JsonPropertyName("batchStartedAt")]
         public DateTime? BatchStartedAt { get; set; }
@@ -146,6 +152,12 @@ namespace SmartParking.DTOs
 
         [JsonPropertyName("checkInOutId")]
         public int? CheckInOutId { get; set; }
+
+        [JsonPropertyName("branchId")]
+        public Guid? BranchId { get; set; }
+
+        [JsonPropertyName("branchName")]
+        public string? BranchName { get; set; }
 
         [JsonPropertyName("cameraId")]
         public string CameraId { get; set; } = string.Empty;

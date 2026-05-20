@@ -192,6 +192,8 @@ class VehicleLocationInfo {
     this.parkingLotCode,
     this.zoneCode,
     this.columnCode,
+    this.branchId,
+    this.branchName,
   });
 
   final int id;
@@ -208,6 +210,8 @@ class VehicleLocationInfo {
   final String? parkingLotCode;
   final String? zoneCode;
   final String? columnCode;
+  final String? branchId;
+  final String? branchName;
 
   factory VehicleLocationInfo.fromJson(Map<String, dynamic> json) =>
       VehicleLocationInfo(
@@ -226,5 +230,72 @@ class VehicleLocationInfo {
         parkingLotCode: json['parkingLotCode']?.toString(),
         zoneCode: json['zoneCode']?.toString(),
         columnCode: json['columnCode']?.toString(),
+        branchId: json['branchId']?.toString(),
+        branchName: json['branchName']?.toString(),
+      );
+}
+
+class ParkingMapInfo {
+  const ParkingMapInfo({
+    required this.branchId,
+    required this.width,
+    required this.height,
+    required this.elements,
+  });
+
+  final String branchId;
+  final double width;
+  final double height;
+  final List<ParkingMapElementInfo> elements;
+
+  factory ParkingMapInfo.fromJson(Map<String, dynamic> json) => ParkingMapInfo(
+        branchId: json['branchId']?.toString() ?? '',
+        width: (json['width'] as num? ?? 1000).toDouble(),
+        height: (json['height'] as num? ?? 620).toDouble(),
+        elements: (json['elements'] as List<dynamic>? ?? [])
+            .map((item) => ParkingMapElementInfo.fromJson(item as Map<String, dynamic>))
+            .toList(),
+      );
+}
+
+class ParkingMapElementInfo {
+  const ParkingMapElementInfo({
+    required this.id,
+    required this.type,
+    required this.label,
+    this.sourceId,
+    this.sourceType,
+    this.parentId,
+    required this.x,
+    required this.y,
+    required this.width,
+    required this.height,
+    required this.color,
+  });
+
+  final String id;
+  final String type;
+  final String label;
+  final String? sourceId;
+  final String? sourceType;
+  final String? parentId;
+  final double x;
+  final double y;
+  final double width;
+  final double height;
+  final String color;
+
+  factory ParkingMapElementInfo.fromJson(Map<String, dynamic> json) => ParkingMapElementInfo(
+        id: json['id']?.toString() ?? '',
+        type: json['type']?.toString() ?? '',
+        label: json['label']?.toString() ?? '',
+        sourceId: json['sourceId']?.toString(),
+        sourceType: json['sourceType']?.toString(),
+        parentId: json['parentId']?.toString(),
+        x: (json['x'] as num? ?? 0).toDouble(),
+        y: (json['y'] as num? ?? 0).toDouble(),
+        width: (json['width'] as num? ?? 100).toDouble(),
+        height: (json['height'] as num? ?? 50).toDouble(),
+        color: json['color']?.toString() ?? '#2563eb',
       );
 }

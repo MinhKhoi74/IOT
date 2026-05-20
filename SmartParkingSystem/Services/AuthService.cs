@@ -44,6 +44,21 @@ namespace SmartParking.Services
                 throw new Exception("Invalid email or password");
             var roles = await _userManager.GetRolesAsync(user);
             var jwt = JwtHelper.GenerateJwtToken(user, roles, _config.GetSection("JwtSettings").Get<JwtSettings>());
+            object? branch = null;
+            if (user.BranchId.HasValue)
+            {
+                branch = await _context.Branches
+                    .AsNoTracking()
+                    .Where(x => x.Id == user.BranchId.Value)
+                    .Select(x => new
+                    {
+                        x.Id,
+                        x.Name,
+                        x.Address
+                    })
+                    .FirstOrDefaultAsync();
+            }
+
             var refreshToken = new RefreshToken
             {
                 Token = Guid.NewGuid().ToString(),
@@ -61,7 +76,8 @@ namespace SmartParking.Services
                     Id = user.Id,
                     Email = user.Email,
                     FullName = user.FullName,
-                    Roles = roles.ToArray()
+                    Roles = roles.ToArray(),
+                    Branch = branch
                 }
             };
         }
@@ -129,7 +145,8 @@ namespace SmartParking.Services
                     Id = user.Id,
                     Email = user.Email,
                     FullName = user.FullName,
-                    Roles = roles.ToArray()
+                    Roles = roles.ToArray(),
+                    Branch = (object?)null
                 }
             };
         }

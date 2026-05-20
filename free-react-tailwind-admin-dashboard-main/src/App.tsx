@@ -43,29 +43,29 @@ export default function App() {
             {/* Parking Routes */}
             <Route
               path="/parking/check-in"
-              element={<ProtectedRoute element={<ParkingCheckIn />} requiredRole={["Staff", "Admin"]} />}
+              element={<ProtectedRoute element={<ParkingCheckIn />} requiredRole={["Staff", "Admin", "Manager"]} />}
             />
             <Route
               path="/parking/check-out"
-              element={<ProtectedRoute element={<ParkingCheckOut />} requiredRole={["Staff", "Admin"]} />}
+              element={<ProtectedRoute element={<ParkingCheckOut />} requiredRole={["Staff", "Admin", "Manager"]} />}
             />
             <Route
               path="/parking/zone-cameras"
-              element={<ProtectedRoute element={<ParkingZoneCameras />} requiredRole={["Staff", "Admin"]} />}
+              element={<ProtectedRoute element={<ParkingZoneCameras />} requiredRole={["Staff", "Admin", "Manager"]} />}
             />
             <Route
               path="/notifications/vehicle-location/:id"
-              element={<ProtectedRoute element={<VehicleLocationNotificationDetail />} requiredRole={["Staff", "Admin"]} />}
+              element={<ProtectedRoute element={<VehicleLocationNotificationDetail />} requiredRole={["Staff", "Admin", "Manager"]} />}
             />
 
             {/* Admin Routes */}
             <Route
               path="/admin/staff"
-              element={<ProtectedRoute element={<StaffManagement />} requiredRole="Admin" />}
+              element={<ProtectedRoute element={<StaffManagement />} requiredRole={["Admin", "Manager"]} />}
             />
             <Route
               path="/admin/users"
-              element={<ProtectedRoute element={<UsersManagement />} requiredRole="Admin" />}
+              element={<ProtectedRoute element={<UsersManagement />} requiredRole={["Admin", "Manager"]} />}
             />
             <Route
               path="/admin/vehicles"
@@ -73,7 +73,7 @@ export default function App() {
             />
             <Route
               path="/admin/parking-structure"
-              element={<ProtectedRoute element={<ParkingStructureManagement />} requiredRole="Admin" />}
+              element={<ProtectedRoute element={<ParkingStructureManagement />} requiredRole={["Admin", "Manager"]} />}
             />
             <Route
               path="/admin/monthly-passes"

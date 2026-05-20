@@ -6,6 +6,7 @@ interface CameraStreamProps {
   onCheckInEvent?: (event: CheckInCameraEvent) => void;
   stationId?: string;
   stationMode?: "entrance" | "exit";
+  branchId?: string;
 }
 
 export interface CheckInCameraEvent {
@@ -50,6 +51,7 @@ export const CameraStream: React.FC<CameraStreamProps> = ({
   onCheckInEvent,
   stationId = "STATION-01",
   stationMode = "entrance",
+  branchId,
 }) => {
   const imgRef = useRef<HTMLImageElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -105,6 +107,7 @@ export const CameraStream: React.FC<CameraStreamProps> = ({
         apiHost: apiHost.trim() || "localhost",
         apiPort: numericApiPort,
         stationMode,
+        branchId,
       });
       setServiceMessage(status.message);
 
@@ -281,7 +284,7 @@ export const CameraStream: React.FC<CameraStreamProps> = ({
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
       <div className="p-4 md:p-6">
         <h2 className="text-lg md:text-xl font-semibold text-gray-800 dark:text-white mb-4">
-          Khung camera Python trực tiếp
+          Khung camera trực tiếp
         </h2>
 
         <div className="mb-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
@@ -317,7 +320,7 @@ export const CameraStream: React.FC<CameraStreamProps> = ({
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                Máy chủ Python API
+                Máy chủ camera API
               </label>
               <input
                 type="text"
@@ -330,7 +333,7 @@ export const CameraStream: React.FC<CameraStreamProps> = ({
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                Cổng Python API
+                Cổng camera API
               </label>
               <input
                 type="text"
@@ -342,13 +345,6 @@ export const CameraStream: React.FC<CameraStreamProps> = ({
               />
             </div>
           </div>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-            Lệnh Python:
-            {" "}
-            <code className="bg-gray-200 dark:bg-gray-600 px-1 py-0.5 rounded">
-              python webcam_smart_lowlatency.py --ip {cameraIp}:{cameraPort}
-            </code>
-          </p>
         </div>
 
         {serviceMessage && (
@@ -429,13 +425,13 @@ export const CameraStream: React.FC<CameraStreamProps> = ({
                 void connectToExistingStream();
               }
             }}
-            className={`flex-1 px-4 py-2 rounded-lg font-medium text-white transition ${
+            className={`flex-1 px-4 py-2 rounded-lg font-medium text-white shadow-theme-sm transition ${
               isActive
-                ? "bg-red-500 hover:bg-red-600"
-                : "bg-green-500 hover:bg-green-600"
+                ? "bg-gradient-to-r from-error-500 to-orange-500 hover:from-error-600 hover:to-orange-600"
+                : "bg-gradient-to-r from-success-500 to-blue-light-500 hover:from-success-600 hover:to-blue-light-600"
             }`}
           >
-            {isStarting ? "Đang kết nối..." : isActive ? "Dừng luồng" : "Khởi động luồng Python"}
+            {isStarting ? "Đang kết nối..." : isActive ? "Dừng luồng" : "Khởi động camera"}
           </button>
 
         </div>

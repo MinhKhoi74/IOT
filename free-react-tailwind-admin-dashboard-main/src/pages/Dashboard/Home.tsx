@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
+import Chart from "react-apexcharts";
+import { ApexOptions } from "apexcharts";
 import PageMeta from "../../components/common/PageMeta";
 import ComponentCard from "../../components/common/ComponentCard";
 import { ParkingDashboard, ParkingHistory, parkingService } from "../../services/parkingService";
 import { useAuth } from "../../context/AuthContext";
 import { createParkingHubConnection } from "../../services/realtimeService";
+import { Branch, parkingStructureService } from "../../services/parkingStructureService";
 
 const formatDateTime = (value?: string) =>
   value ? new Date(value).toLocaleString("vi-VN") : "Chưa ra bãi";
@@ -20,20 +23,102 @@ const translatePaymentStatus = (value?: string) => {
 
 const pageSize = 10;
 
+type ChartMode = "daily" | "monthly";
+
 const toImageSrc = (base64?: string) => {
   if (!base64) return "";
   return base64.startsWith("data:") ? base64 : `data:image/jpeg;base64,${base64}`;
 };
 
+const isPaid = (session: ParkingHistory) =>
+  (session.paymentStatus || "").toLowerCase() === "paid";
+
+const getDayKey = (date: Date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+
+const getMonthKey = (date: Date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+
+const buildDailyBuckets = (sessions: ParkingHistory[]) => {
+  const today = new Date();
+  const buckets = Array.from({ length: 14 }, (_, index) => {
+    const date = new Date(today);
+    date.setDate(today.getDate() - (13 - index));
+    const key = getDayKey(date);
+    return {
+      key,
+      label: date.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit" }),
+      revenue: 0,
+      checkins: 0,
+      checkouts: 0,
+    };
+  });
+  const byKey = new Map(buckets.map((bucket) => [bucket.key, bucket]));
+
+  sessions.forEach((session) => {
+    const checkInDate = new Date(session.checkInTime);
+    const checkInBucket = byKey.get(getDayKey(checkInDate));
+    if (checkInBucket) checkInBucket.checkins += 1;
+
+    if (session.checkOutTime) {
+      const checkOutDate = new Date(session.checkOutTime);
+      const checkOutBucket = byKey.get(getDayKey(checkOutDate));
+      if (checkOutBucket) {
+        checkOutBucket.checkouts += 1;
+        if (isPaid(session)) checkOutBucket.revenue += Number(session.feeAmount || 0);
+      }
+    }
+  });
+
+  return buckets;
+};
+
+const buildMonthlyBuckets = (sessions: ParkingHistory[]) => {
+  const today = new Date();
+  const buckets = Array.from({ length: 12 }, (_, index) => {
+    const date = new Date(today.getFullYear(), today.getMonth() - (11 - index), 1);
+    const key = getMonthKey(date);
+    return {
+      key,
+      label: date.toLocaleDateString("vi-VN", { month: "2-digit", year: "2-digit" }),
+      revenue: 0,
+      checkins: 0,
+      checkouts: 0,
+    };
+  });
+  const byKey = new Map(buckets.map((bucket) => [bucket.key, bucket]));
+
+  sessions.forEach((session) => {
+    const checkInDate = new Date(session.checkInTime);
+    const checkInBucket = byKey.get(getMonthKey(checkInDate));
+    if (checkInBucket) checkInBucket.checkins += 1;
+
+    if (session.checkOutTime) {
+      const checkOutDate = new Date(session.checkOutTime);
+      const checkOutBucket = byKey.get(getMonthKey(checkOutDate));
+      if (checkOutBucket) {
+        checkOutBucket.checkouts += 1;
+        if (isPaid(session)) checkOutBucket.revenue += Number(session.feeAmount || 0);
+      }
+    }
+  });
+
+  return buckets;
+};
+
 export default function Home() {
   const { user } = useAuth();
   const roles = user?.roles || user?.Roles || (user?.role ? [user.role] : []);
-  const canViewParkingDashboard = roles.includes("Staff") || roles.includes("Admin");
+  const isAdmin = roles.includes("Admin");
+  const canViewParkingDashboard = roles.includes("Staff") || roles.includes("Admin") || roles.includes("Manager");
   const [dashboard, setDashboard] = useState<ParkingDashboard | null>(null);
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [selectedBranchId, setSelectedBranchId] = useState("");
   const [selectedSession, setSelectedSession] = useState<ParkingHistory | null>(null);
   const [loading, setLoading] = useState(canViewParkingDashboard);
   const [error, setError] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [chartMode, setChartMode] = useState<ChartMode>("daily");
   const [filters, setFilters] = useState({
     plateNumber: "",
     checkInFrom: "",
@@ -42,12 +127,20 @@ export default function Home() {
   });
 
   useEffect(() => {
+    if (!isAdmin) return;
+
+    parkingStructureService.branches()
+      .then(setBranches)
+      .catch((err) => setError(err instanceof Error ? err.message : "Tất cả chi nhánh"));
+  }, [isAdmin]);
+
+  useEffect(() => {
     if (!canViewParkingDashboard) return;
 
     const loadDashboard = async (showLoading = true) => {
       try {
         if (showLoading) setLoading(true);
-        setDashboard(await parkingService.getDashboard());
+        setDashboard(await parkingService.getDashboard(isAdmin ? selectedBranchId || undefined : undefined));
         setError("");
       } catch (err) {
         setError(err instanceof Error ? err.message : "Không tải được tổng quan bãi xe");
@@ -66,7 +159,7 @@ export default function Home() {
       connection.off("ParkingDashboardUpdated");
       connection.stop().catch(() => undefined);
     };
-  }, [canViewParkingDashboard]);
+  }, [canViewParkingDashboard, isAdmin, selectedBranchId]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -101,6 +194,102 @@ export default function Home() {
   }
 
   const sessions = dashboard?.sessions || [];
+  const chartBuckets = chartMode === "daily" ? buildDailyBuckets(sessions) : buildMonthlyBuckets(sessions);
+  const chartLabels = chartBuckets.map((bucket) => bucket.label);
+  const revenueChartOptions: ApexOptions = {
+    colors: ["#0ba5ec"],
+    chart: {
+      fontFamily: "Roboto, sans-serif",
+      type: "area",
+      toolbar: { show: false },
+      zoom: { enabled: false },
+    },
+    dataLabels: { enabled: false },
+    stroke: { curve: "smooth", width: 3 },
+    fill: {
+      type: "gradient",
+      gradient: { opacityFrom: 0.35, opacityTo: 0.02 },
+    },
+    grid: {
+      borderColor: "#E4E7EC",
+      yaxis: { lines: { show: true } },
+      xaxis: { lines: { show: false } },
+    },
+    xaxis: {
+      categories: chartLabels,
+      axisBorder: { show: false },
+      axisTicks: { show: false },
+      labels: { style: { colors: "#667085", fontSize: "12px" } },
+    },
+    yaxis: {
+      labels: {
+        style: { colors: ["#667085"], fontSize: "12px" },
+        formatter: (value) => `${Math.round(value / 1000)}k`,
+      },
+    },
+    tooltip: {
+      y: {
+        formatter: (value) =>
+          value.toLocaleString("vi-VN", { style: "currency", currency: "VND" }),
+      },
+    },
+  };
+  const trafficChartOptions: ApexOptions = {
+    colors: ["#12B76A", "#F79009"],
+    chart: {
+      fontFamily: "Roboto, sans-serif",
+      type: "bar",
+      toolbar: { show: false },
+    },
+    plotOptions: {
+      bar: {
+        columnWidth: "45%",
+        borderRadius: 5,
+        borderRadiusApplication: "end",
+      },
+    },
+    dataLabels: { enabled: false },
+    stroke: { show: true, width: 3, colors: ["transparent"] },
+    grid: {
+      borderColor: "#E4E7EC",
+      yaxis: { lines: { show: true } },
+    },
+    legend: {
+      show: true,
+      position: "top",
+      horizontalAlign: "left",
+      fontFamily: "Roboto",
+    },
+    xaxis: {
+      categories: chartLabels,
+      axisBorder: { show: false },
+      axisTicks: { show: false },
+      labels: { style: { colors: "#667085", fontSize: "12px" } },
+    },
+    yaxis: {
+      labels: { style: { colors: ["#667085"], fontSize: "12px" } },
+    },
+    fill: { opacity: 1 },
+    tooltip: {
+      y: { formatter: (value) => `${value} lượt` },
+    },
+  };
+  const revenueSeries = [
+    {
+      name: "Doanh thu",
+      data: chartBuckets.map((bucket) => bucket.revenue),
+    },
+  ];
+  const trafficSeries = [
+    {
+      name: "Check-in",
+      data: chartBuckets.map((bucket) => bucket.checkins),
+    },
+    {
+      name: "Check-out",
+      data: chartBuckets.map((bucket) => bucket.checkouts),
+    },
+  ];
   const filteredSessions = sessions.filter((session) => {
     const plateMatches = !filters.plateNumber.trim()
       || session.plateNumber.toLowerCase().includes(filters.plateNumber.trim().toLowerCase());
@@ -128,10 +317,35 @@ export default function Home() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        {isAdmin && (
+          <div className="flex flex-col gap-2 md:max-w-md">
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              Chi nhánh
+            </label>
+            <select
+              value={selectedBranchId}
+              onChange={(event) => setSelectedBranchId(event.target.value)}
+              className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+            >
+              <option value="">Tất cả chi nhánh</option>
+              {branches.map((branch) => (
+                <option key={branch.id} value={branch.id}>
+                  {branch.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
           <ComponentCard title="Xe đang trong bãi">
             <p className="text-3xl font-semibold text-gray-900 dark:text-white">
               {dashboard?.activeVehicleCount ?? 0}
+            </p>
+          </ComponentCard>
+          <ComponentCard title="Sức chứa tối đa">
+            <p className="text-3xl font-semibold text-gray-900 dark:text-white">
+              {dashboard?.maxVehicleCapacity ?? "Tất cả"}
             </p>
           </ComponentCard>
           <ComponentCard title="Tổng doanh thu">
@@ -139,6 +353,87 @@ export default function Home() {
               {formatMoney(dashboard?.totalRevenue)}
             </p>
           </ComponentCard>
+          <ComponentCard title="Doanh thu vãng lai">
+            <p className="text-3xl font-semibold text-gray-900 dark:text-white">
+              {formatMoney(dashboard?.casualRevenue)}
+            </p>
+          </ComponentCard>
+          <ComponentCard title="Doanh thu vé tháng">
+            <p className="text-3xl font-semibold text-gray-900 dark:text-white">
+              {formatMoney(dashboard?.monthlyPassRevenue)}
+            </p>
+          </ComponentCard>
+        </div>
+
+        <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] sm:p-6">
+          <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
+                Biểu đồ thống kê
+              </h3>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                Doanh thu và lượt xe theo {chartMode === "daily" ? "ngày" : "tháng"}
+              </p>
+            </div>
+            <div className="inline-flex rounded-lg bg-gray-100 p-1 dark:bg-gray-800">
+              <button
+                type="button"
+                onClick={() => setChartMode("daily")}
+                className={`rounded-md px-4 py-2 text-sm font-semibold transition ${
+                  chartMode === "daily"
+                    ? "bg-white text-brand-600 shadow-theme-xs dark:bg-gray-700 dark:text-white"
+                    : "text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white"
+                }`}
+              >
+                Theo ngày
+              </button>
+              <button
+                type="button"
+                onClick={() => setChartMode("monthly")}
+                className={`rounded-md px-4 py-2 text-sm font-semibold transition ${
+                  chartMode === "monthly"
+                    ? "bg-white text-brand-600 shadow-theme-xs dark:bg-gray-700 dark:text-white"
+                    : "text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white"
+                }`}
+              >
+                Theo tháng
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+            <div className="rounded-lg border border-gray-100 p-4 dark:border-gray-800">
+              <div className="mb-3">
+                <p className="text-sm font-semibold text-gray-800 dark:text-white/90">
+                  Doanh thu
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Tính theo các lượt gửi xe đã thanh toán
+                </p>
+              </div>
+              <div className="max-w-full overflow-x-auto custom-scrollbar">
+                <div className="min-w-[720px] xl:min-w-full">
+                  <Chart options={revenueChartOptions} series={revenueSeries} type="area" height={280} />
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-gray-100 p-4 dark:border-gray-800">
+              <div className="mb-3">
+                <p className="text-sm font-semibold text-gray-800 dark:text-white/90">
+                  Lượt check-in / check-out
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  So sánh số lượt xe vào và ra bãi
+                </p>
+              </div>
+              <div className="max-w-full overflow-x-auto custom-scrollbar">
+                <div className="min-w-[720px] xl:min-w-full">
+                  <Chart options={trafficChartOptions} series={trafficSeries} type="bar" height={280} />
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <ComponentCard title="Lượt xe vào / ra">

@@ -250,6 +250,13 @@ namespace SmartParking.Controllers
             }
 
             extraData.TryGetValue("ownerPhone", out var ownerPhone);
+            decimal paidAmount = notification.Amount;
+            if (paidAmount <= 0 &&
+                extraData.TryGetValue("amount", out var amountText) &&
+                decimal.TryParse(amountText, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out var parsedAmount))
+            {
+                paidAmount = parsedAmount;
+            }
 
             var alreadyRecorded = await _context.WalletTransactions.AnyAsync(x =>
                 x.ReferenceType == "MonthlyPass" &&
@@ -263,7 +270,7 @@ namespace SmartParking.Controllers
                     Id = Guid.NewGuid(),
                     WalletId = wallet.Id,
                     Type = "MonthlyPassRevenue",
-                    Amount = notification.Amount,
+                    Amount = paidAmount,
                     BalanceBefore = wallet.Balance,
                     BalanceAfter = wallet.Balance,
                     ReferenceType = "MonthlyPass",
@@ -281,7 +288,8 @@ namespace SmartParking.Controllers
                 OwnerPhone = ownerPhone,
                 ValidFrom = validFrom,
                 ValidTo = validTo,
-                IsActive = true
+                IsActive = true,
+                Amount = paidAmount
             });
         }
     }

@@ -7,6 +7,7 @@ namespace SmartParking.Models
         public int Id { get; set; }
         public Guid? VehicleId { get; set; }
         public string? UserId { get; set; }
+        public Guid? BranchId { get; set; }
 
         // Plate info
         public string LicensePlate { get; set; }
@@ -40,6 +41,7 @@ namespace SmartParking.Models
 
         public Vehicle? Vehicle { get; set; }
         public Identity.ApplicationUser? User { get; set; }
+        public Branch? Branch { get; set; }
         public WalletTransaction? WalletTransaction { get; set; }
     }
 }

@@ -12,7 +12,16 @@ interface ZoneCameraStreamProps {
   defaultParkingLot?: string;
   defaultZone?: string;
   defaultColumn?: string;
+  locationOptions?: ZoneLocationOption[];
+  branchId?: string;
   onEvent?: (event: ZoneCameraEvent) => void;
+}
+
+export interface ZoneLocationOption {
+  locationName: string;
+  parkingLot: string;
+  zone: string;
+  column: string;
 }
 
 export interface ZoneCameraEvent {
@@ -78,15 +87,6 @@ const loadApiPort = (key: string, fallback: string) => {
   return savedPort === "5000" ? fallback : savedPort || fallback;
 };
 
-const quoteShellArg = (value: string) => {
-  const trimmed = value.trim();
-  if (/^[A-Za-z0-9_.:-]+$/.test(trimmed)) {
-    return trimmed;
-  }
-
-  return `"${trimmed.replace(/(["\\])/g, "\\$1")}"`;
-};
-
 export const ZoneCameraStream: React.FC<ZoneCameraStreamProps> = ({
   storageKey,
   title,
@@ -98,6 +98,8 @@ export const ZoneCameraStream: React.FC<ZoneCameraStreamProps> = ({
   defaultParkingLot = "",
   defaultZone = "",
   defaultColumn = "",
+  locationOptions = [],
+  branchId,
   onEvent,
 }) => {
   const imgRef = useRef<HTMLImageElement>(null);
@@ -142,6 +144,16 @@ export const ZoneCameraStream: React.FC<ZoneCameraStreamProps> = ({
     localStorage.setItem(`${storageKey}:locationName`, locationName.trim());
   };
 
+  const chooseLocation = (value: string) => {
+    const option = locationOptions.find((item) => item.locationName === value);
+    setLocationName(value);
+    if (option) {
+      setParkingLot(option.parkingLot);
+      setZone(option.zone);
+      setColumn(option.column);
+    }
+  };
+
   const connectStream = async () => {
     try {
       setIsStarting(true);
@@ -177,6 +189,7 @@ export const ZoneCameraStream: React.FC<ZoneCameraStreamProps> = ({
         parkingLotCode: parkingLot.trim() || undefined,
         zoneCode: zone.trim() || undefined,
         columnCode: column.trim() || undefined,
+        branchId,
       });
       setServiceMessage(status.message);
 
@@ -297,19 +310,6 @@ export const ZoneCameraStream: React.FC<ZoneCameraStreamProps> = ({
     }, 700);
   };
 
-  const command = [
-    "python webcam_zone_locator.py",
-    `--ip ${quoteShellArg(`${cameraIp}:${cameraPort}`)}`,
-    `--camera-id ${quoteShellArg(cameraId)}`,
-    parkingLot ? `--parking-lot ${quoteShellArg(parkingLot)}` : "",
-    zone ? `--zone ${quoteShellArg(zone)}` : "",
-    column ? `--column ${quoteShellArg(column)}` : "",
-    `--location-name ${quoteShellArg(locationName)}`,
-    "--api-server",
-    `--api-port ${apiPort}`,
-    "--headless",
-  ].filter(Boolean).join(" ");
-
   return (
     <div className="rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-800">
       <div className="border-b border-gray-200 p-4 dark:border-gray-700">
@@ -332,20 +332,41 @@ export const ZoneCameraStream: React.FC<ZoneCameraStreamProps> = ({
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <input className="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white" value={cameraIp} onChange={(e) => setCameraIp(e.target.value)} placeholder="Camera IP" disabled={isActive} />
           <input className="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white" value={cameraPort} onChange={(e) => setCameraPort(e.target.value)} placeholder="Cổng camera" disabled={isActive} />
-          <input className="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white" value={apiHost} onChange={(e) => setApiHost(e.target.value)} placeholder="Máy chủ Python API" disabled={isActive} />
-          <input className="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white" value={apiPort} onChange={(e) => setApiPort(e.target.value)} placeholder="Cổng Python API" disabled={isActive} />
+          <input className="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white" value={apiHost} onChange={(e) => setApiHost(e.target.value)} placeholder="Máy chủ camera API" disabled={isActive} />
+          <input className="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white" value={apiPort} onChange={(e) => setApiPort(e.target.value)} placeholder="Cổng camera API" disabled={isActive} />
           <input className="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white" value={cameraId} onChange={(e) => setCameraId(e.target.value)} placeholder="Mã camera" disabled={isActive} />
-          <input className="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white" value={locationName} onChange={(e) => setLocationName(e.target.value)} placeholder="Tên vị trí" disabled={isActive} />
-          <input className="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white" value={parkingLot} onChange={(e) => setParkingLot(e.target.value)} placeholder="Bãi xe" disabled={isActive} />
+          <select className="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white" value={locationName} onChange={(e) => chooseLocation(e.target.value)} disabled={isActive}>
+            <option value="">Tên vị trí</option>
+            {locationOptions.map((option) => (
+              <option key={`${option.parkingLot}-${option.zone}-${option.column}`} value={option.locationName}>
+                {option.locationName}
+              </option>
+            ))}
+          </select>
+          <select className="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white" value={parkingLot} onChange={(e) => setParkingLot(e.target.value)} disabled={isActive}>
+            <option value="">Bãi xe</option>
+            {[...new Set(locationOptions.map((item) => item.parkingLot))].map((value) => (
+              <option key={value} value={value}>{value}</option>
+            ))}
+          </select>
           <div className="grid grid-cols-2 gap-3">
-            <input className="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white" value={zone} onChange={(e) => setZone(e.target.value)} placeholder="Khu" disabled={isActive} />
-            <input className="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white" value={column} onChange={(e) => setColumn(e.target.value)} placeholder="Cột" disabled={isActive} />
+            <select className="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white" value={zone} onChange={(e) => setZone(e.target.value)} disabled={isActive}>
+              <option value="">Khu</option>
+              {[...new Set(locationOptions.filter((item) => !parkingLot || item.parkingLot === parkingLot).map((item) => item.zone))].map((value) => (
+                <option key={value} value={value}>{value}</option>
+              ))}
+            </select>
+            <select className="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white" value={column} onChange={(e) => setColumn(e.target.value)} disabled={isActive}>
+              <option value="">Cột</option>
+              {locationOptions
+                .filter((item) => (!parkingLot || item.parkingLot === parkingLot) && (!zone || item.zone === zone))
+                .map((item) => item.column)
+                .filter((value, index, values) => values.indexOf(value) === index)
+                .map((value) => (
+                  <option key={value} value={value}>{value}</option>
+                ))}
+            </select>
           </div>
-        </div>
-
-        <div className="rounded-lg bg-gray-50 p-3 text-xs text-gray-600 dark:bg-gray-700/50 dark:text-gray-300">
-          <span className="font-semibold">Lệnh Python:</span>{" "}
-          <code className="break-all">{command}</code>
         </div>
 
         {connectionError && (
@@ -468,11 +489,13 @@ export const ZoneCameraStream: React.FC<ZoneCameraStreamProps> = ({
               void connectStream();
             }
           }}
-          className={`w-full rounded-lg px-4 py-2 font-medium text-white transition ${
-            isActive ? "bg-red-500 hover:bg-red-600" : "bg-green-500 hover:bg-green-600"
+          className={`w-full rounded-lg px-4 py-2 font-medium text-white shadow-theme-sm transition ${
+            isActive
+              ? "bg-gradient-to-r from-error-500 to-orange-500 hover:from-error-600 hover:to-orange-600"
+              : "bg-gradient-to-r from-success-500 to-blue-light-500 hover:from-success-600 hover:to-blue-light-600"
           }`}
         >
-          {isStarting ? "Đang kết nối..." : isActive ? "Dừng luồng" : "Kết nối luồng Python"}
+          {isStarting ? "Đang kết nối..." : isActive ? "Dừng luồng" : "Kết nối camera"}
         </button>
       </div>
     </div>

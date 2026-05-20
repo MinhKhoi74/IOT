@@ -15,6 +15,7 @@ export interface StartCameraRequest {
   apiHost: string;
   apiPort: number;
   stationMode: "entrance" | "exit";
+  branchId?: string;
 }
 
 export interface StartZoneCameraRequest {
@@ -27,6 +28,7 @@ export interface StartZoneCameraRequest {
   parkingLotCode?: string;
   zoneCode?: string;
   columnCode?: string;
+  branchId?: string;
 }
 
 export interface StopZoneCameraRequest {

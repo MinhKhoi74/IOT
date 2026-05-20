@@ -5,6 +5,7 @@ export interface CheckInRequest {
   stationId: string;
   confidence: number;
   imageBase64?: string;
+  branchId?: string;
 }
 
 export interface CheckInOutResult {
@@ -49,7 +50,10 @@ export interface ParkingHistory {
 
 export interface ParkingDashboard {
   activeVehicleCount: number;
+  maxVehicleCapacity?: number;
   totalRevenue: number;
+  casualRevenue: number;
+  monthlyPassRevenue: number;
   sessions: ParkingHistory[];
 }
 
@@ -97,11 +101,12 @@ export const parkingService = {
   checkOut: async (
     plateNumber: string,
     stationId: string,
-    imageBase64?: string
+    imageBase64?: string,
+    branchId?: string
   ): Promise<CheckInOutResult> => {
     return apiCall<CheckInOutResult>("/parking/check-out", {
       method: "POST",
-      body: { plateNumber, stationId, imageBase64 },
+      body: { plateNumber, stationId, imageBase64, branchId },
     });
   },
 
@@ -142,28 +147,34 @@ export const parkingService = {
     });
   },
 
-  getLatestCheckIn: async (): Promise<ParkingHistory> => {
-    const item = await apiCall<any>("/parking/latest-check-in", {
+  getLatestCheckIn: async (branchId?: string): Promise<ParkingHistory> => {
+    const query = branchId ? `?branchId=${encodeURIComponent(branchId)}` : "";
+    const item = await apiCall<any>(`/parking/latest-check-in${query}`, {
       method: "GET",
     });
 
     return mapParkingHistory(item);
   },
 
-  getLatestCheckOut: async (): Promise<ParkingHistory> => {
-    const item = await apiCall<any>("/parking/latest-check-out", {
+  getLatestCheckOut: async (branchId?: string): Promise<ParkingHistory> => {
+    const query = branchId ? `?branchId=${encodeURIComponent(branchId)}` : "";
+    const item = await apiCall<any>(`/parking/latest-check-out${query}`, {
       method: "GET",
     });
 
     return mapParkingHistory(item);
   },
 
-  getDashboard: async (): Promise<ParkingDashboard> => {
-    const data = await apiCall<any>("/parking/dashboard", { method: "GET" });
+  getDashboard: async (branchId?: string): Promise<ParkingDashboard> => {
+    const query = branchId ? `?branchId=${encodeURIComponent(branchId)}` : "";
+    const data = await apiCall<any>(`/parking/dashboard${query}`, { method: "GET" });
 
     return {
       activeVehicleCount: data.activeVehicleCount || 0,
+      maxVehicleCapacity: data.maxVehicleCapacity,
       totalRevenue: data.totalRevenue || 0,
+      casualRevenue: data.casualRevenue || 0,
+      monthlyPassRevenue: data.monthlyPassRevenue || 0,
       sessions: Array.isArray(data.sessions) ? data.sessions.map(mapParkingHistory) : [],
     };
   },

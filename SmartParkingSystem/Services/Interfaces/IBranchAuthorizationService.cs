@@ -6,5 +6,6 @@ namespace SmartParking.Services.Interfaces
         Task EnsureCanManageParkingLotAsync(Guid parkingLotId, string userId, bool isAdmin);
         Task EnsureCanManageZoneAsync(Guid zoneId, string userId, bool isAdmin);
         Task EnsureCanManageSlotAsync(Guid slotId, string userId, bool isAdmin);
+        Task<Guid?> GetBranchScopeAsync(string userId, bool isAdmin, Guid? requestedBranchId = null);
     }
 }

@@ -7,6 +7,7 @@ export interface MonthlyPass {
   ownerPhone?: string;
   validFrom: string;
   validTo: string;
+  amount: number;
   isActive: boolean;
 }
 
@@ -16,12 +17,26 @@ export interface MonthlyPassUpsertRequest {
   ownerPhone?: string;
   validFrom: string;
   validTo: string;
+  amount: number;
   isActive: boolean;
 }
 
 export const monthlyPassService = {
   getAll: async (): Promise<MonthlyPass[]> => {
     return apiCall<MonthlyPass[]>("/monthly-passes", { method: "GET" });
+  },
+
+  getPrice: async (): Promise<number> => {
+    const data = await apiCall<{ monthlyAmount: number }>("/monthly-passes/price", { method: "GET" });
+    return data.monthlyAmount || 0;
+  },
+
+  updatePrice: async (monthlyAmount: number): Promise<number> => {
+    const data = await apiCall<{ monthlyAmount: number }>("/monthly-passes/price", {
+      method: "PUT",
+      body: { monthlyAmount },
+    });
+    return data.monthlyAmount || 0;
   },
 
   upsert: async (request: MonthlyPassUpsertRequest): Promise<MonthlyPass> => {
